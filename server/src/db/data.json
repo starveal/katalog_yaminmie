@@ -1,0 +1,134 @@
+{
+  "settings": {
+    "storeName": "Toko Berkah Nusantara",
+    "tagline": "Kuliner Lezat & Segar Siap Antar Setiap Hari",
+    "phone": "6281234567890",
+    "address": "Jl. Melati No. 12, Jakarta",
+    "currency": "Rp",
+    "activeWhatsApp": true
+  },
+  "admin": {
+    "id": "admin-1",
+    "name": "Owner Toko Berkah",
+    "email": "admin@katalogwa.com",
+    "password": "$2b$10$J4CglyoiKOYDZfdgcz5nre4l6.ZlFdJ1CUtVYvhRjQhw9u3gkIgjq"
+  },
+  "categories": [
+    {
+      "id": "cat-1",
+      "name": "Makanan",
+      "slug": "makanan"
+    },
+    {
+      "id": "cat-2",
+      "name": "Minuman",
+      "slug": "minuman"
+    },
+    {
+      "id": "cat-3",
+      "name": "Camilan",
+      "slug": "camilan"
+    }
+  ],
+  "products": [
+    {
+      "id": "prod-1",
+      "name": "Nasi Goreng Spesial Toko Berkah",
+      "categoryId": "cat-1",
+      "categoryName": "Makanan",
+      "price": 28000,
+      "stockStatus": "Tersedia",
+      "description": "Nasi goreng racikan bumbu rempah otentik disajikan dengan telur mata sapi, ayam suwir, dan kerupuk renyah.",
+      "image": "https://images.unsplash.com/photo-1603133872878-684f208fb84b?auto=format&fit=crop&w=800&q=80",
+      "createdAt": "2026-10-19T15:57:55.665Z"
+    },
+    {
+      "id": "prod-2",
+      "name": "Ayam Bakar Madu Pedas",
+      "categoryId": "cat-1",
+      "categoryName": "Makanan",
+      "price": 32000,
+      "stockStatus": "Tersedia",
+      "description": "Potongan ayam bakar empuk dilumuri saus madu gurih pedas manis dengan lalapan segar dan sambal terasi.",
+      "image": "https://images.unsplash.com/photo-1598515214211-89d3c73ae83b?auto=format&fit=crop&w=800&q=80",
+      "createdAt": "2026-10-19T15:57:55.666Z"
+    },
+    {
+      "id": "prod-3",
+      "name": "Mie Aceh Tumis Daging Sapi",
+      "categoryId": "cat-1",
+      "categoryName": "Makanan",
+      "price": 30000,
+      "stockStatus": "Tersedia",
+      "description": "Mie kuning kenyal khas Aceh dimasak bumbu kari pekat dengan irisan daging sapi empuk, tauge, dan emping.",
+      "image": "https://images.unsplash.com/photo-1612927601601-6638404737ce?auto=format&fit=crop&w=800&q=80",
+      "createdAt": "2026-10-19T15:57:55.666Z"
+    },
+    {
+      "id": "prod-4",
+      "name": "Es Kopi Susu Gula Aren",
+      "categoryId": "cat-2",
+      "categoryName": "Minuman",
+      "price": 18000,
+      "stockStatus": "Tersedia",
+      "description": "Espresso robusta & arabica pilihan dipadu susu creamy fresh dan sirup gula aren murni organik.",
+      "image": "https://images.unsplash.com/photo-1517256064527-09c73fc73e38?auto=format&fit=crop&w=800&q=80",
+      "createdAt": "2026-10-19T15:57:55.666Z"
+    },
+    {
+      "id": "prod-5",
+      "name": "Matcha Latte Creamy Frappe",
+      "categoryId": "cat-2",
+      "categoryName": "Minuman",
+      "price": 22000,
+      "stockStatus": "Tersedia",
+      "description": "Bubuk green tea matcha Uji Jepang premium dipadu susu segar dingin yang lembut dan harum.",
+      "image": "https://images.unsplash.com/photo-1536256263959-770b48d82b0a?auto=format&fit=crop&w=800&q=80",
+      "createdAt": "2026-10-19T15:57:55.666Z"
+    },
+    {
+      "id": "prod-6",
+      "name": "Es Lemon Tea Segar Jumbo",
+      "categoryId": "cat-2",
+      "categoryName": "Minuman",
+      "price": 10000,
+      "stockStatus": "Tersedia",
+      "description": "Seduhan teh melati wangi dengan perasan lemon asli segar dan es batu dingin, penghilang dahaga terbaik.",
+      "image": "https://images.unsplash.com/photo-1556679343-c7306c1976bc?auto=format&fit=crop&w=800&q=80",
+      "createdAt": "2026-10-19T15:57:55.666Z"
+    },
+    {
+      "id": "prod-7",
+      "name": "Pisang Goreng Keju Cokelat Lumer",
+      "categoryId": "cat-3",
+      "categoryName": "Camilan",
+      "price": 18000,
+      "stockStatus": "Tersedia",
+      "description": "Pisang raja manis digoreng tepung crispy diselimuti keju parut gurih dan saus cokelat Belgian lumer.",
+      "image": "https://images.unsplash.com/photo-1587314168485-3236d6710814?auto=format&fit=crop&w=800&q=80",
+      "createdAt": "2026-10-19T15:57:55.666Z"
+    },
+    {
+      "id": "prod-8",
+      "name": "Dimsum Mentai Panggang (4 pcs)",
+      "categoryId": "cat-3",
+      "categoryName": "Camilan",
+      "price": 25000,
+      "stockStatus": "Tersedia",
+      "description": "Dimsum ayam udang lembut dengan topping saus mentai gurih dibakar torch aroma smoky menggoda.",
+      "image": "https://images.unsplash.com/photo-1496116218417-1a781b1c416c?auto=format&fit=crop&w=800&q=80",
+      "createdAt": "2026-10-19T15:57:55.666Z"
+    },
+    {
+      "id": "prod-9",
+      "name": "Cireng Crispy Bumbu Rujak Pedas",
+      "categoryId": "cat-3",
+      "categoryName": "Camilan",
+      "price": 15000,
+      "stockStatus": "Habis",
+      "description": "Cireng kenyal gurih dengan lapisan renyah di luar, dicocol saus rujak manis asam pedas nagih.",
+      "image": "https://images.unsplash.com/photo-1626082927389-6cd097cdc6ec?auto=format&fit=crop&w=800&q=80",
+      "createdAt": "2026-10-19T15:57:55.666Z"
+    }
+  ]
+}
