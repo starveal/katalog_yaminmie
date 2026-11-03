@@ -1,35 +1,54 @@
+
 import express from 'express';
-import { db } from '../middleware/auth.js';
-import { authenticateToken } from '../middleware/auth.js';
+import { db } from '../db/db.js';
+import { authenticateToken } from '../db/middleware/auth.js';
 
 const router = express.Router();
 
 // GET Store settings (public)
 router.get('/', (req, res) => {
-    const setings   = db.getSettings();
-    res.json({
-        succes: true,
-        data: settings
-    });
+    try {
+        const settings = db.getSettings();
+
+        res.json({
+            success: true,
+            data: settings
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: error.message
+        });
+    }
 });
 
-// PUT update store settings (admin protected)
+// PUT Update store settings (admin protected)
 router.put('/', authenticateToken, (req, res) => {
-    const { storeName, tagline, phone, address } = req.body;
+    try {
+        const { storeName, tagline, phone, address } = req.body;
 
-    const current = db.getSettings();
-    const updated = db.updateSettings({
-        storeName: storeName || current.storeName,
-        tagline: tagline || current.tagline,
-        phone: phone ? phone.replace(/[^0-9]/g, '') : current.phone,
-        address: address !== undefined ? address : current.address
-    });
+        const current = db.getSettings();
 
-    res.json({
-        succes: true,
-        message: 'Pengaturan toko berhasil disimpan',
-        data: updated
-    });
+        const updated = db.updateSettings({
+            storeName: storeName ?? current.storeName,
+            tagline: tagline ?? current.tagline,
+            phone: phone !== undefined
+                ? phone.replace(/[^0-9]/g, '')
+                : current.phone,
+            address: address ?? current.address
+        });
+
+        res.json({
+            success: true,
+            message: 'Pengaturan toko berhasil disimpan',
+            data: updated
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: error.message
+        });
+    }
 });
 
 export default router;

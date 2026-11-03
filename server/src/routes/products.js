@@ -1,161 +1,315 @@
+
 import express from 'express';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
+
 import { db } from '../db/db.js';
-import { authenticateToken } from '../middleware/auth.js';
+import { authenticateToken } from '../db/middleware/auth.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
 const uploadsDir = path.join(__dirname, '../../uploads');
 
 if (!fs.existsSync(uploadsDir)) {
     fs.mkdirSync(uploadsDir, { recursive: true });
 }
 
-//Multer configuration for file uploads
+// Multer configuration
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
-        cb(null,uploadsDir);
-    },
-    filename: (req, file, cb) => {
         cb(null, uploadsDir);
     },
     filename: (req, file, cb) => {
         const ext = path.extname(file.originalname);
-        const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
+        const uniqueSuffix =
+            `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
+
         cb(null, `product-${uniqueSuffix}${ext}`);
     }
 });
 
 const upload = multer({
     storage,
-    limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limits
+    limits: {
+        fileSize: 5 * 1024 * 1024
+    },
     fileFilter: (req, file, cb) => {
-        const allowed = /jpeg|jpg|png|webp|gif/;
-        const ext = allowed.test(path.extname(file.originalname).toLocaleLowerCase());
-        const mime = allowed.test(file.mimetype);
-        if (ext && mime) {
+        const allowed = /\.(jpeg|jpg|png|webp|gif)$/i;
+        const validMime = /^image\/(jpeg|png|webp|gif)$/i;
+
+        if (
+            allowed.test(path.extname(file.originalname)) &&
+            validMime.test(file.mimetype)
+        ) {
             return cb(null, true);
         }
-        cb(new Error('Format file tidak didukung! Hanya gambar JPEG, PNG, WEBP'));
+
+        cb(new Error('Format gambar tidak didukung'));
     }
 });
 
 const router = express.Router();
 
-//Get all products with filtering & search (public)
+// GET all products
 router.get('/', (req, res) => {
-    const { categoryId, search, stockStatus } = req.query;
-    const products = db.getProducts({categoryId, search, stockStatus});
+    try {
+        const { categoryId, search, stockStatus } = req.query;
 
-    res.json({
-        success: true,
-        count: products.lenght,
-        data: products
-    });
+        const products = db.getProducts({
+            categoryId,
+            search,
+            stockStatus
+        });
+
+        res.json({
+            success: true,
+            count: products.length,
+            data: products
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: error.message
+        });
+    }
 });
 
-//GET single product (public)
+// GET single product
 router.get('/:id', (req, res) => {
-    const products = db.getProductsById(req.params.id);
-    if (!products) {
-        return res.status(404).json({ success: false, messege:'Produk tidak ditemukan' });
+    try {
+        const product = db.getProductById(req.params.id);
+
+        if (!product) {
+            return res.status(404).json({
+                success: false,
+                message: 'Produk tidak ditemukan'
+            });
+        }
+
+        res.json({
+            success: true,
+            data: product
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: error.message
+        });
     }
-    res.json({ success: true, data: products});
 });
 
-//POST CREATE PRODUCT (admin protected)
-router.post('/', authenticateToken, upload.single('photo'), (req, res) => {
-    const { name, categoryId, price, stockStatus, description, imageUrl } = req.body;
+// POST create product
+router.post(
+    '/',
+    authenticateToken,
+    upload.single('photo'),
+    (req, res) => {
+        try {
+            const {
+                name,
+                categoryId,
+                price,
+                stockStatus,
+                description,
+                imageUrl
+            } = req.body;
 
-    if (!name || !name.trim()) {
-        return res.status(400).json({ success: false, messege:'Nama produk wajib diisi' });
+            if (!name || !name.trim()) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Nama produk wajib diisi'
+                });
+            }
+
+            if (!categoryId || !db.getCategoryById(categoryId)) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Kategori produk tidak valid'
+                });
+            }
+
+            if (
+                price === undefined ||
+                price === '' ||
+                !Number.isFinite(Number(price)) ||
+                Number(price) <= 0
+            ) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Harga produk harus angka positif'
+                });
+            }
+
+            const finalImage = req.file
+                ? `/uploads/${req.file.filename}`
+                : (imageUrl || '');
+
+            const newProduct = db.addProduct({
+                name: name.trim(),
+                categoryId,
+                price: Number(price),
+                stockStatus: stockStatus || 'Tersedia',
+                description: description ? description.trim() : '',
+                image: finalImage
+            });
+
+            res.status(201).json({
+                success: true,
+                message: 'Produk berhasil ditambahkan',
+                data: newProduct
+            });
+        } catch (error) {
+            res.status(400).json({
+                success: false,
+                message: error.message
+            });
+        }
     }
-    if (!categoryId) {
-        return res.status(400).json({ success: false, messege:'Harga produk harus angka positif'})
+);
+
+// PUT update product
+router.put(
+    '/:id',
+    authenticateToken,
+    upload.single('photo'),
+    (req, res) => {
+        try {
+            const { id } = req.params;
+
+            const {
+                name,
+                categoryId,
+                price,
+                stockStatus,
+                description,
+                imageUrl
+            } = req.body;
+
+            const existing = db.getProductById(id);
+
+            if (!existing) {
+                return res.status(404).json({
+                    success: false,
+                    message: 'Produk tidak ditemukan'
+                });
+            }
+
+            const updatePayload = {};
+
+            if (name !== undefined) {
+                if (!name.trim()) {
+                    return res.status(400).json({
+                        success: false,
+                        message: 'Nama produk tidak boleh kosong'
+                    });
+                }
+                updatePayload.name = name.trim();
+            }
+
+            if (categoryId !== undefined) {
+                if (!db.getCategoryById(categoryId)) {
+                    return res.status(400).json({
+                        success: false,
+                        message: 'Kategori tidak valid'
+                    });
+                }
+                updatePayload.categoryId = categoryId;
+            }
+
+            if (price !== undefined) {
+                if (
+                    price === '' ||
+                    !Number.isFinite(Number(price)) ||
+                    Number(price) <= 0
+                ) {
+                    return res.status(400).json({
+                        success: false,
+                        message: 'Harga harus angka positif'
+                    });
+                }
+                updatePayload.price = Number(price);
+            }
+
+            if (stockStatus !== undefined) {
+                updatePayload.stockStatus = stockStatus;
+            }
+
+            if (description !== undefined) {
+                updatePayload.description = description.trim();
+            }
+
+            if (req.file) {
+                updatePayload.image = `/uploads/${req.file.filename}`;
+            } else if (imageUrl !== undefined) {
+                updatePayload.image = imageUrl.trim();
+            }
+
+            const updated = db.updateProduct(id, updatePayload);
+
+            res.json({
+                success: true,
+                message: 'Produk berhasil diperbarui',
+                data: updated
+            });
+        } catch (error) {
+            res.status(400).json({
+                success: false,
+                message: error.message
+            });
+        }
     }
+);
 
-    let finalImage = imageUrl;
-    if (req.file) {
-        finalImage = '/uploads/${req.file.filename}';
-    }
-
-    const newProduct = db.addProduct({
-        name: name.trim(),
-        categoryId,
-        price: Number(price),
-        stockStatus: stockStatus || 'Tersedia',
-        description: description ? description.trim() : '',
-        image: finalImage || ''
-    });
-
-    res.status(201).json({
-        success: true,
-        messege: 'Produk berhasil ditambahkan',
-        data: newProduct,
-    });
-});
-
-//PUT update product (admin protected)
-router.put('/:id', authenticateToken, upload.single)
-('photo'), (req, res) => {
-    const { id } = req.params;
-    const { name, categoryId, price, stockStatus, description, imageUrl } = req.body;
-    const existing = db.getProductsById(id);
-    if (!existing) {
-        return res.status(404).json({ success: false, messege:'Produk tidak ditemukan '});
-    }
-
-    const updatePayload = {};
-    if (name !== undefined) updatePayload.name = name.trim();
-    if (categoryId !== undefined) updatePayload.categoryId=categoryId;
-    if (price !== undefined) updatePayload.categoryId = categoryId
-    if (stockStatus !== undefined) updatePayload.stockStatus = stockStatus;
-    if (description !== undefined) updatePayload.description = description.trim();
-
-    if (req,file) {
-        updatePayload.image = `/uploads/${req.file.filename}`;
-    }else if (imageUrl !== undefined && imageUrl.trim()) {
-        updatePayload.image = imageUrl.trim();
-    }
-
-    const updated = db.getProduct(id, updatePayload);
-
-    res.json({
-        success: 'Produk berhasil diperbarui',
-        data: updated
-    });
-};
-
-//PATCH TOGGLE STOCK STATUS (ADMIN PROTECTED)
+// PATCH toggle stock
 router.patch('/:id/stock', authenticateToken, (req, res) => {
-    const { id } = req.params;
-    const updated = db.toggleStock(id);
+    try {
+        const updated = db.toggleStock(req.params.id);
 
-    if (!updated) {
-        return res.status(404).json({ success: false, messege:'Produk tidak ditemukan' })
+        if (!updated) {
+            return res.status(404).json({
+                success: false,
+                message: 'Produk tidak ditemukan'
+            });
+        }
+
+        res.json({
+            success: true,
+            message: `Status stok diubah menjadi: ${updated.stockStatus}`,
+            data: updated
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: error.message
+        });
     }
-
-    res.json({
-        success: true,
-        messege: `Status stok diubah menjadi: ${updated.stockStatus}`,
-        data: updated
-    });
 });
 
-// Delete product (admin protected)
+// DELETE product
 router.delete('/:id', authenticateToken, (req, res) => {
-    const { id } = req.params
-    const deleted = db.deleteProduct(id);
-    if (!deleted) {
-        return res.status(404).json({ success: false, messege: 'Produk tidak ditemukan'});
+    try {
+        const deleted = db.deleteProduct(req.params.id);
+
+        if (!deleted) {
+            return res.status(404).json({
+                success: false,
+                message: 'Produk tidak ditemukan'
+            });
+        }
+
+        res.json({
+            success: true,
+            message: 'Produk berhasil dihapus'
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: error.message
+        });
     }
-    res.json({
-        success: true,
-        messege: 'Produk berhasil dihapus'
-    });
 });
 
 export default router;

@@ -1,1 +1,12 @@
-/server/node_modules/
+node_modules/
+client/node_modules/
+server/node_modules/
+
+.env
+.env.local
+
+dist/
+build/
+
+*.log
+*.sqlite-journal
