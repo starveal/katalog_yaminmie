@@ -8,20 +8,23 @@ import {
   getAuthToken
 } from './services/api';
 
-import Header from './components/Header';
+import { Header } from './components/Header';
 import { CategoryPills } from './components/CategoryPills';
 import { SearchBar } from './components/SearchBar';
 import { ProductCard } from './components/ProductCard';
 import { OrderModal } from './components/OrderModal';
 import { AdminLoginModal } from './components/AdminLoginModal';
 import { AdminDashboard } from './components/AdminDashboard';
-import { Sparkles, MessageCircle, MapPin, Phone, RefreshCw } from 'lucide-react';
+import { Sparkles, MessageCircle, MapPin, Phone, RefreshCw, ArrowUpRight, Utensils } from 'lucide-react';
+import Logo from './assets/Cinnamix Coffee and Cinnamon Logo.png';
+
+const currentYear = new Date().getFullYear();
 
 export function App() {
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
   const [storeSettings, setStoreSettings] = useState(null);
-  const [activeCategoryId, setActiveCategoryId] = useState('*');
+  const [activeCategoryId, setActiveCategoryId] = useState('');
   const [search, setSearch] = useState('');
   const [selectedProductForOrder, setSelectedProductForOrder] = useState(null);
 
@@ -77,9 +80,7 @@ export function App() {
 
   // Filter products for Customer Catalog View
   const filteredProducts = products.filter((p) => {
-    const matchesCat =
-      activeCategoryId === '*' ||
-      p.categoryId === activeCategoryId;
+    const matchesCat = !activeCategoryId || p.categoryId === activeCategoryId;
 
     const matchesSearch = !search ||
       p.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -90,6 +91,12 @@ export function App() {
 
     return matchesCat && matchesSearch;
   });
+
+  const heroProduct = products.find((product) => product.stockStatus === 'Tersedia') || products[0];
+  const storePhone = (storeSettings?.phone || '6281234567890').replace(/[^0-9]/g, '');
+  const whatsappUrl = `https://wa.me/${storePhone}?text=${encodeURIComponent(
+    `Halo ${storeSettings?.storeName || 'Cinnamix Coffee & Resto'}, saya ingin bertanya tentang menu hari ini.`
+  )}`;
 
   return (
     <div className="app-layout">
@@ -119,33 +126,65 @@ export function App() {
           />
 
           <main className="customer-catalog-view animate-fade-in">
-            {/* Hero Banner Section */}
             <section className="hero-banner">
-              <div className="container">
-                <span className="hero-badge">
-                  <Sparkles size={14} />
-                  <span>Pesan Cepat Tanpa Ribet Daftar Akun</span>
-                </span>
+              <div className="container hero-layout">
+                <div className="hero-copy">
+                  <span className="hero-badge">
+                    <Sparkles size={14} />
+                    <span>Rasa lokal, dibuat sepenuh hati</span>
+                  </span>
 
-                <h1 className="hero-title">
-                  {storeSettings?.storeName || 'Toko Berkah Nusantara'}
-                </h1>
+                  <h1 className="hero-title">
+                    Nikmati momen,
+                    <span> temukan rasa favoritmu.</span>
+                  </h1>
 
-                <p className="hero-desc">
-                  {storeSettings?.tagline || 'Pilih menu makanan, minuman, dan camilan favoritmu. Klik pesan, lalu chat langsung dengan kami di WhatsApp!'}
-                </p>
+                  <p className="hero-desc">
+                    {storeSettings?.tagline || 'Temukan racikan kopi dan hidangan rumahan yang selalu dibuat segar untuk menemani harimu.'}
+                  </p>
+                  <div className="hero-actions">
+                    <a className="btn btn-primary" href="#menu">
+                      <Utensils size={17} />
+                      <span>Lihat Menu</span>
+                    </a>
+                    <a className="btn btn-hero-outline" href={whatsappUrl} target="_blank" rel="noreferrer">
+                      <MessageCircle size={17} />
+                      <span>Pesan Sekarang</span>
+                      <ArrowUpRight size={15} />
+                    </a>
+                  </div>
+                  <p className="hero-note">Pesan praktis, langsung terhubung dengan kami.</p>
+                </div>
+
+                <div className="hero-visual">
+                  <img
+                    className="hero-image"
+                    src={heroProduct?.image || Logo}
+                    alt={heroProduct?.name || 'Kopi dan hidangan Cinnamix'}
+                  />
+                  <div className="hero-image-caption">
+                    <span className="hero-caption-mark"><Sparkles size={15} /></span>
+                    <span>
+                      <strong>{heroProduct?.name || storeSettings?.storeName || 'Cinnamix Coffee & Resto'}</strong>
+                      <small>Favorit untuk menemani harimu</small>
+                    </span>
+                  </div>
+                </div>
               </div>
             </section>
 
-            <div className="container" style={{ paddingTop: '1.5rem' }}>
-              {/* Search Bar */}
+            <section className="container catalog-content" id="menu">
+              <div className="catalog-intro">
+                <span className="section-eyebrow">DARI DAPUR KAMI</span>
+                <h2>Menu yang bikin kembali</h2>
+                <p>Pilihan hangat dan segar, disiapkan dengan bahan pilihan.</p>
+              </div>
               <SearchBar
                 search={search}
                 setSearch={setSearch}
-                placeholder="Cari menu lezat... (cth: Nasi Goreng, Ayam Bakar, Kopi)"
+                placeholder="Cari makanan atau minuman favoritmu..."
               />
 
-              {/* Category Filter Pills (Makanan | Minuman | Camilan) */}
               <CategoryPills
                 categories={categories}
                 activeCategoryId={activeCategoryId}
@@ -153,59 +192,60 @@ export function App() {
                 totalProductsCount={products.length}
               />
 
-              {/* Loading Skeleton */}
-            {isLoading ? (
-              <div
-                style={{
-                  textAlign: 'center',
-                  padding: '4rem 1rem',
-                  color: 'var(--slate-400)'
-                }}
-              >
-                <RefreshCw
-                  size={32}
-                  className="animate-spin"
-                  style={{ margin: '0 auto 1rem' }}
-                />
-                <p>Memuat katalog produk...</p>
+              <div className="catalog-results-label">
+                <span>{search || activeCategoryId ? `${filteredProducts.length} menu ditemukan` : 'Pilihan untukmu'}</span>
               </div>
-            ) : filteredProducts.length > 0 ? (
-              /* Product Grid */
-              <div className="catalog-grid animate-fade-in">
-                {filteredProducts.map((product) => (
-                  <ProductCard
-                    key={product.id}
-                    product={product}
-                    onSelectProduct={setSelectedProductForOrder}
-                  />
-                ))}
-              </div>
-            ) : (
-              /* Empty Search / Filter State */
-              <div className="catalog-empty-state animate-fade-in">
-                <MessageCircle
-                  size={48}
-                  color="#94a3b8"
-                  style={{ margin: '0 auto' }}
-                />
-                <h3 className="catalog-empty-title">
-                  Menu Tidak Ditemukan
-                </h3>
-                <p className="catalog-empty-desc">
-                  Tidak ada produk yang cocok dengan "{search}" pada kategori terpilih.
-                </p>
-                <button
-                  className="btn btn-secondary btn-sm"
-                  onClick={() => {
-                    setSearch('');
-                    setActiveCategoryId('*');
+
+              {isLoading ? (
+                <div
+                  style={{
+                    textAlign: 'center',
+                    padding: '4rem 1rem',
+                    color: 'var(--slate-400)'
                   }}
                 >
-                  Tampilkan Semua Menu
-                </button>
-              </div>
-            )}
-          </div>
+                  <RefreshCw
+                    size={32}
+                    className="animate-spin"
+                    style={{ margin: '0 auto 1rem' }}
+                  />
+                  <p>Memuat katalog produk...</p>
+                </div>
+              ) : filteredProducts.length > 0 ? (
+                <div className="catalog-grid animate-fade-in">
+                  {filteredProducts.map((product) => (
+                    <ProductCard
+                      key={product.id}
+                      product={product}
+                      onSelectProduct={setSelectedProductForOrder}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div className="catalog-empty-state animate-fade-in">
+                  <MessageCircle
+                    size={48}
+                    color="#94a3b8"
+                    style={{ margin: '0 auto' }}
+                  />
+                  <h3 className="catalog-empty-title">
+                    Menu Tidak Ditemukan
+                  </h3>
+                  <p className="catalog-empty-desc">
+                    Tidak ada produk yang cocok dengan "{search}" pada kategori terpilih.
+                  </p>
+                  <button
+                    className="btn btn-secondary btn-sm"
+                    onClick={() => {
+                      setSearch('');
+                      setActiveCategoryId('');
+                    }}
+                  >
+                    Tampilkan Semua Menu
+                  </button>
+                </div>
+              )}
+            </section>
 
           {/* Customer Order Details Form Modal */}
           {selectedProductForOrder && (
@@ -217,54 +257,27 @@ export function App() {
           )}
 
           {/* Public Footer */}
-          <footer
-            style={{
-              background: '#ffffff',
-              borderTop: '1px solid var(--slate-200)',
-              padding: '2.5rem 0',
-              marginTop: '3rem'
-            }}
-          >
-            <div
-              className="container"
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                flexWrap: 'wrap',
-                gap: '1rem'
-              }}
-            >
-              <div>
-                <strong>
-                  {storeSettings?.storeName || 'Toko Berkah Nusantara'}
-                </strong>
-
-                <p
-                  style={{
-                    color: 'var(--slate-500)',
-                    fontSize: '0.85rem',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.4rem',
-                    marginTop: '0.2rem'
-                  }}
-                >
-                  <MapPin size={14} />
-                  <span>
-                    {storeSettings?.address || 'Jakarta, Indonesia'}
-                  </span>
-                </p>
+          <footer className="site-footer">
+            <div className="container footer-main">
+              <div className="footer-brand">
+                <img src={Logo} alt="" />
+                <div>
+                  <strong>{storeSettings?.storeName || 'Cinnamix Coffee & Resto'}</strong>
+                  <p>{storeSettings?.tagline || 'Rasa lokal, dibuat sepenuh hati.'}</p>
+                </div>
               </div>
-
-              <div
-                style={{
-                  fontSize: '0.85rem',
-                  color: 'var(--slate-500)'
-                }}
-              >
-                WhatsApp CS: <strong>{storeSettings?.phone || '6281234567890'}</strong>
+              <div className="footer-contact">
+                <a href={whatsappUrl} target="_blank" rel="noreferrer">
+                  <Phone size={16} />
+                  <span>WhatsApp: {storeSettings?.phone || '6281234567890'}</span>
+                  <ArrowUpRight size={14} />
+                </a>
+                <p><MapPin size={16} /><span>{storeSettings?.address || 'Jakarta, Indonesia'}</span></p>
               </div>
+            </div>
+            <div className="container footer-bottom">
+              <span>© {currentYear} {storeSettings?.storeName || 'Cinnamix Coffee & Resto'}</span>
+              <span>Dibuat dengan rasa lokal.</span>
             </div>
           </footer>
         </main>
