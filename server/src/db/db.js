@@ -1,4 +1,5 @@
 import { DatabaseSync } from 'node:sqlite';
+import { randomUUID } from 'node:crypto';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import bcrypt from 'bcryptjs';
@@ -63,6 +64,25 @@ class SqliteDatabase {
       );
     `);
 
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS orders (
+        id TEXT PRIMARY KEY,
+        customer_name TEXT NOT NULL,
+        delivery_address TEXT NOT NULL DEFAULT '',
+        special_notes TEXT NOT NULL DEFAULT '',
+        items_json TEXT NOT NULL,
+        total_price INTEGER NOT NULL,
+        status TEXT NOT NULL DEFAULT 'Menunggu konfirmasi',
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        confirmed_at TEXT
+      );
+    `);
+
+    const orderColumns = this.db.prepare('PRAGMA table_info(orders)').all();
+    if (!orderColumns.some((column) => column.name === 'confirmed_at')) {
+      this.db.exec('ALTER TABLE orders ADD COLUMN confirmed_at TEXT');
+    }
+
     // Indexes
     this.db.exec(`
       CREATE INDEX IF NOT EXISTS idx_products_cat ON products(category_id);
@@ -88,7 +108,7 @@ class SqliteDatabase {
       const hashedPassword = bcrypt.hashSync('admin123', 10);
       this.db.prepare(
         'INSERT INTO admins (id, name, email, password) VALUES (?, ?, ?, ?)'
-      ).run('admin-1', 'Owner Toko Berkah', 'admin@katalogwa.com', hashedPassword);
+      ).run('admin-1', 'Cinnamix Owner', 'admin@katalogwa.com', hashedPassword);
     }
 
     // Seed Categories
@@ -223,6 +243,33 @@ class SqliteDatabase {
   // --- Admin SQL Operations ---
   getAdmin() {
     return this.db.prepare('SELECT id, name, email, password FROM admins LIMIT 1').get();
+  }
+
+  getAdminById(id) {
+    return this.db.prepare(
+      'SELECT id, name, email, password FROM admins WHERE id = ?'
+    ).get(id);
+  }
+
+  getAdminByEmail(email) {
+    return this.db.prepare(
+      'SELECT id, name, email FROM admins WHERE email = ?'
+    ).get(email);
+  }
+
+  updateAdmin(id, { name, email, password }) {
+    this.db.prepare(`
+      UPDATE admins
+      SET name = ?, email = ?, password = ?
+      WHERE id = ?
+    `).run(name, email, password, id);
+
+    return this.getAdminById(id);
+  }
+
+  updateAdminPassword(id, password) {
+    this.db.prepare('UPDATE admins SET password = ? WHERE id = ?').run(password, id);
+    return this.getAdminById(id);
   }
 
   // --- Category SQL Operations ---
@@ -377,6 +424,77 @@ class SqliteDatabase {
   deleteProduct(id) {
     const res = this.db.prepare('DELETE FROM products WHERE id = ?').run(id);
     return res.changes > 0;
+  }
+
+  // --- Order SQL Operations ---
+  getOrders() {
+    return this.db.prepare(`
+      SELECT
+        id,
+        customer_name AS customerName,
+        delivery_address AS deliveryAddress,
+        special_notes AS specialNotes,
+        items_json AS itemsJson,
+        total_price AS totalPrice,
+        status,
+        created_at AS createdAt,
+        confirmed_at AS confirmedAt
+      FROM orders
+      ORDER BY created_at DESC, rowid DESC
+    `).all().map(({ itemsJson, ...order }) => ({
+      ...order,
+      items: JSON.parse(itemsJson)
+    }));
+  }
+
+  createOrder({ customerName, deliveryAddress, specialNotes, items, totalPrice }) {
+    const id = `order-${randomUUID()}`;
+    this.db.prepare(`
+      INSERT INTO orders (
+        id, customer_name, delivery_address, special_notes, items_json, total_price
+      )
+      VALUES (?, ?, ?, ?, ?, ?)
+    `).run(
+      id,
+      customerName,
+      deliveryAddress,
+      specialNotes,
+      JSON.stringify(items),
+      totalPrice
+    );
+
+    return this.getOrders().find((order) => order.id === id);
+  }
+
+  confirmOrder(id) {
+    const result = this.db.prepare(`
+      UPDATE orders
+      SET status = 'Telah dikonfirmasi',
+          confirmed_at = CURRENT_TIMESTAMP
+      WHERE id = ? AND status != 'Telah dikonfirmasi'
+    `).run(id);
+
+    return result.changes > 0;
+  }
+
+  resetOrderStatuses() {
+    const result = this.db.prepare(`
+      UPDATE orders
+      SET status = 'Menunggu konfirmasi',
+          confirmed_at = NULL
+      WHERE status != 'Menunggu konfirmasi' OR confirmed_at IS NOT NULL
+    `).run();
+
+    return result.changes;
+  }
+
+  deleteConfirmedOrder(id) {
+    const result = this.db.prepare(`
+      DELETE FROM orders
+      WHERE id = ? AND status = 'Telah dikonfirmasi'
+    `).run(id);
+
+    return result.changes > 0;
   }
 }
 

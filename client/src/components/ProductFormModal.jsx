@@ -10,6 +10,59 @@ const PRESET_FOOD_IMAGES = [
   { label: 'Dimsum Mentai', url: 'https://images.unsplash.com/photo-1496116218417-1a781b1c416c?auto=format&fit=crop&w=800&q=80' }
 ];
 
+const MAX_UPLOAD_SIZE = 700 * 1024;
+const MAX_ORIGINAL_SIZE = 20 * 1024 * 1024;
+
+const compressImage = async (file) => {
+  if (file.size <= MAX_UPLOAD_SIZE) return file;
+  if (file.type === 'image/gif') {
+    throw new Error('Foto GIF lebih besar dari 700 KB. Gunakan foto JPG, PNG, atau WEBP.');
+  }
+
+  let bitmap;
+  try {
+    bitmap = await createImageBitmap(file);
+  } catch {
+    throw new Error('Foto tidak dapat dibaca. Coba gunakan file gambar lain.');
+  }
+
+  try {
+    const canvas = document.createElement('canvas');
+    let scale = Math.min(1, 1600 / Math.max(bitmap.width, bitmap.height));
+
+    for (let attempt = 0; attempt < 8; attempt += 1) {
+      canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+      canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+      const context = canvas.getContext('2d');
+      if (!context) throw new Error('Browser tidak dapat memproses foto.');
+      context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+
+      const quality = Math.max(0.45, 0.82 - attempt * 0.06);
+      const blob = await new Promise((resolve, reject) => {
+        canvas.toBlob(
+          (result) => result ? resolve(result) : reject(new Error('Foto gagal dikompres.')),
+          'image/webp',
+          quality
+        );
+      });
+
+      if (blob.size <= MAX_UPLOAD_SIZE) {
+        const name = file.name.replace(/\.[^.]+$/, '') || 'foto-produk';
+        return new File([blob], `${name}.webp`, {
+          type: 'image/webp',
+          lastModified: Date.now()
+        });
+      }
+
+      scale *= 0.8;
+    }
+
+    throw new Error('Foto masih terlalu besar setelah dikompres. Coba gunakan foto lain.');
+  } finally {
+    bitmap.close();
+  }
+};
+
 export const ProductFormModal = ({ isOpen, onClose, onSave, editingProduct, categories }) => {
   const [name, setName] = useState('');
   const [categoryId, setCategoryId] = useState('');
@@ -45,20 +98,49 @@ export const ProductFormModal = ({ isOpen, onClose, onSave, editingProduct, cate
     setErrorMsg('');
   }, [editingProduct, categories, isOpen]);
 
+  useEffect(() => {
+    if (previewSrc.startsWith('blob:')) {
+      return () => URL.revokeObjectURL(previewSrc);
+    }
+  }, [previewSrc]);
+
   if (!isOpen) return null;
 
   // Handle file picker
   const handleFileChange = (e) => {
     const file = e.target.files[0];
+    e.target.value = '';
     if (file) {
+      const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+      const allowedExtension = /\.(jpeg|jpg|png|webp|gif)$/i.test(file.name);
+      if (!allowedTypes.includes(file.type) || !allowedExtension) {
+        setErrorMsg('Format foto harus JPG, PNG, WEBP, atau GIF.');
+        return;
+      }
+      if (file.size > MAX_ORIGINAL_SIZE) {
+        setErrorMsg('Ukuran foto asli maksimal 20 MB.');
+        return;
+      }
+
+      setErrorMsg('');
       setSelectedFile(file);
       const objectUrl = URL.createObjectURL(file);
+      setImageUrl('');
       setPreviewSrc(objectUrl);
     }
   };
 
+  const handleImageUrlChange = (e) => {
+    const url = e.target.value;
+    setErrorMsg('');
+    setSelectedFile(null);
+    setImageUrl(url);
+    setPreviewSrc(url);
+  };
+
   // Handle preset image click
   const handleSelectPreset = (url) => {
+    setErrorMsg('');
     setSelectedFile(null);
     setImageUrl(url);
     setPreviewSrc(url);
@@ -85,13 +167,14 @@ export const ProductFormModal = ({ isOpen, onClose, onSave, editingProduct, cate
     try {
       let payload;
       if (selectedFile) {
+        const uploadFile = await compressImage(selectedFile);
         payload = new FormData();
         payload.append('name', name.trim());
         payload.append('categoryId', categoryId);
         payload.append('price', price);
         payload.append('stockStatus', stockStatus);
         payload.append('description', description.trim());
-        payload.append('photo', selectedFile);
+        payload.append('photo', uploadFile);
       } else {
         payload = {
           name: name.trim(),
@@ -156,16 +239,36 @@ export const ProductFormModal = ({ isOpen, onClose, onSave, editingProduct, cate
               </div>
 
               <div className="media-controls">
-                <label className="btn btn-secondary btn-sm upload-file-btn">
+                <input
+                  id="product-image-upload"
+                  className="product-image-file-input"
+                  type="file"
+                  accept=".jpg,.jpeg,.png,.webp,.gif,image/jpeg,image/png,image/webp,image/gif"
+                  onChange={handleFileChange}
+                  disabled={isSubmitting}
+                />
+                <label
+                  className="btn btn-secondary btn-sm upload-file-btn"
+                  htmlFor="product-image-upload"
+                  aria-disabled={isSubmitting}
+                >
                   <Upload size={15} />
-                  <span>Upload Foto dari Perangkat</span>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleFileChange}
-                    style={{ display: 'none' }}
-                  />
+                  <span>{editingProduct ? 'Ganti Foto dari Perangkat' : 'Pilih Foto dari Perangkat'}</span>
                 </label>
+
+                <div className="form-group">
+                  <label className="form-label" htmlFor="product-image-url">
+                    URL Foto Produk
+                  </label>
+                  <input
+                    id="product-image-url"
+                    type="text"
+                    className="form-input"
+                    placeholder="Tempel URL foto, atau upload dari perangkat"
+                    value={imageUrl}
+                    onChange={handleImageUrlChange}
+                  />
+                </div>
 
                 <div className="preset-images-row">
                   <span className="preset-label">Atau pilih sampel cepat:</span>

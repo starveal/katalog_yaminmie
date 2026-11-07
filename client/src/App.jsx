@@ -16,7 +16,7 @@ import { OrderModal } from './components/OrderModal';
 import { AdminLoginModal } from './components/AdminLoginModal';
 import { AdminDashboard } from './components/AdminDashboard';
 import { Sparkles, MessageCircle, MapPin, Phone, RefreshCw, ArrowUpRight, Utensils } from 'lucide-react';
-import Logo from './assets/Cinnamix Coffee and Cinnamon Logo.png';
+import DefaultLogo from './assets/Cinnamix Coffee and Cinnamon Logo.png';
 
 const currentYear = new Date().getFullYear();
 
@@ -27,6 +27,8 @@ export function App() {
   const [activeCategoryId, setActiveCategoryId] = useState('');
   const [search, setSearch] = useState('');
   const [selectedProductForOrder, setSelectedProductForOrder] = useState(null);
+  const [cartItems, setCartItems] = useState([]);
+  const [isCartOpen, setIsCartOpen] = useState(false);
 
   // Admin authentication & views
   const [isAdminLoginOpen, setIsAdminLoginOpen] = useState(false);
@@ -78,6 +80,22 @@ export function App() {
     setIsAdminView(false);
   };
 
+  const handleAddToCart = (product) => {
+    setCartItems((currentItems) => {
+      const existingItem = currentItems.find((item) => item.id === product.id);
+      if (existingItem) {
+        return currentItems.map((item) => (
+          item.id === product.id
+            ? { ...item, quantity: item.quantity + 1 }
+            : item
+        ));
+      }
+      return [...currentItems, { ...product, quantity: 1 }];
+    });
+  };
+
+  const cartItemCount = cartItems.reduce((total, item) => total + item.quantity, 0);
+
   // Filter products for Customer Catalog View
   const filteredProducts = products.filter((p) => {
     const matchesCat = !activeCategoryId || p.categoryId === activeCategoryId;
@@ -108,6 +126,7 @@ export function App() {
           categories={categories}
           storeSettings={storeSettings}
           adminUser={adminUser}
+          onProfileUpdated={setAdminUser}
           onRefreshData={loadData}
           onBackToCatalog={() => setIsAdminView(false)}
           onLogout={handleLogout}
@@ -121,12 +140,14 @@ export function App() {
             isAdminView={isAdminView}
             setIsAdminView={setIsAdminView}
             adminUser={adminUser}
+            cartItemCount={cartItemCount}
+            onOpenCart={() => setIsCartOpen(true)}
             onOpenLogin={() => setIsAdminLoginOpen(true)}
             onLogout={handleLogout}
           />
 
           <main className="customer-catalog-view animate-fade-in">
-            <section className="hero-banner">
+            <section className="hero-banner" id="beranda">
               <div className="container hero-layout">
                 <div className="hero-copy">
                   <span className="hero-badge">
@@ -159,7 +180,7 @@ export function App() {
                 <div className="hero-visual">
                   <img
                     className="hero-image"
-                    src={heroProduct?.image || Logo}
+                    src={heroProduct?.image || DefaultLogo}
                     alt={heroProduct?.name || 'Kopi dan hidangan Cinnamix'}
                   />
                   <div className="hero-image-caption">
@@ -218,6 +239,7 @@ export function App() {
                       key={product.id}
                       product={product}
                       onSelectProduct={setSelectedProductForOrder}
+                      onAddToCart={handleAddToCart}
                     />
                   ))}
                 </div>
@@ -248,11 +270,19 @@ export function App() {
             </section>
 
           {/* Customer Order Details Form Modal */}
-          {selectedProductForOrder && (
+          {(selectedProductForOrder || isCartOpen) && (
             <OrderModal
               product={selectedProductForOrder}
+              cartItems={isCartOpen ? cartItems : undefined}
+              onCartItemsChange={setCartItems}
+              onOrderComplete={() => {
+                if (isCartOpen) setCartItems([]);
+              }}
               storeSettings={storeSettings}
-              onClose={() => setSelectedProductForOrder(null)}
+              onClose={() => {
+                setSelectedProductForOrder(null);
+                setIsCartOpen(false);
+              }}
             />
           )}
 
@@ -260,7 +290,7 @@ export function App() {
           <footer className="site-footer">
             <div className="container footer-main">
               <div className="footer-brand">
-                <img src={Logo} alt="" />
+                <img src={storeSettings?.logo || DefaultLogo} alt="" />
                 <div>
                   <strong>{storeSettings?.storeName || 'Cinnamix Coffee & Resto'}</strong>
                   <p>{storeSettings?.tagline || 'Rasa lokal, dibuat sepenuh hati.'}</p>

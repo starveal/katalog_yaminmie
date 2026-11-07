@@ -1,7 +1,15 @@
 import React from 'react';
 import { AlertTriangle, Trash2, X } from 'lucide-react';
 
-export const ConfirmModal = ({ isOpen, title, message, onConfirm, onCancel, confirmText = 'Ya, Hapus' }) => {
+export const ConfirmModal = ({
+    isOpen,
+    title,
+    message,
+    onConfirm,
+    onCancel,
+    confirmText = 'Ya, Hapus',
+    isProcessing = false
+}) => {
     if (!isOpen) return null;
 
     return (
@@ -25,11 +33,11 @@ export const ConfirmModal = ({ isOpen, title, message, onConfirm, onCancel, conf
                     </p>
 
                     <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center' }}>
-                        <button className="btn btn-secondary" onClick={onCancel} style={{ flex: 1 }}>
+                        <button className="btn btn-secondary" onClick={onCancel} style={{ flex: 1 }} disabled={isProcessing}>
                             Batal
                         </button>
 
-                        <button className="btn btn-danger" onClick={onConfirm} style={{ flex: 1 }}>
+                        <button className="btn btn-danger" onClick={onConfirm} style={{ flex: 1 }} disabled={isProcessing}>
                             <Trash2 size={16} />
                             <span>{confirmText}</span>
                         </button>

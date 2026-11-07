@@ -1,7 +1,7 @@
 import React from 'react';
-import { MessageCircle, CheckCircle2, XCircle } from 'lucide-react';
+import { MessageCircle, CheckCircle2, XCircle, ShoppingCart } from 'lucide-react';
 
-export const ProductCard = ({ product, onSelectProduct }) => {
+export const ProductCard = ({ product, onSelectProduct, onAddToCart }) => {
   const isAvailable = product.stockStatus === 'Tersedia';
 
   // Format Indonesian Rupiah
@@ -68,17 +68,30 @@ export const ProductCard = ({ product, onSelectProduct }) => {
             <span className="product-price">{formatRupiah(product.price)}</span>
           </div>
 
-          <button
-            className="btn btn-wa order-btn"
-            disabled={!isAvailable}
-            onClick={() => onSelectProduct(product)}
-            id={`btn-order-${product.id}`}
-            title={isAvailable ? 'Pesan produk ini via WhatsApp' : 'Produk saat ini sedang habis'}
-            aria-label={isAvailable ? `Pesan ${product.name} via WhatsApp` : `${product.name} sedang habis`}
-          >
-            <MessageCircle size={17} />
-            <span>{isAvailable ? 'Pesan' : 'Habis'}</span>
-          </button>
+          <div className="product-action-group">
+            <button
+              className="btn btn-secondary add-cart-btn"
+              disabled={!isAvailable}
+              onClick={() => onAddToCart(product)}
+              id={`btn-add-cart-${product.id}`}
+              title={isAvailable ? 'Tambahkan produk ke keranjang' : 'Produk saat ini sedang habis'}
+              aria-label={isAvailable ? `Tambah ${product.name} ke keranjang` : `${product.name} sedang habis`}
+            >
+              <ShoppingCart size={16} />
+              <span>Tambah</span>
+            </button>
+            <button
+              className="btn btn-wa order-btn"
+              disabled={!isAvailable}
+              onClick={() => onSelectProduct(product)}
+              id={`btn-order-${product.id}`}
+              title={isAvailable ? 'Pesan produk ini via WhatsApp' : 'Produk saat ini sedang habis'}
+              aria-label={isAvailable ? `Pesan ${product.name} via WhatsApp` : `${product.name} sedang habis`}
+            >
+              <MessageCircle size={17} />
+              <span>{isAvailable ? 'Pesan' : 'Habis'}</span>
+            </button>
+          </div>
         </div>
       </div>
     </div>

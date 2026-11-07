@@ -23,7 +23,9 @@ const getHeaders = (isFormData = false) => {
 const handleResponse = async (response) => {
     const data = await response.json().catch(() => ({}));
     if (!response.ok) {
-        const errorMsg = data.message || `Request failed with status ${response.status}`;
+        const errorMsg = response.status === 413
+            ? 'Foto terlalu besar untuk server. Coba unggah foto yang lebih kecil atau tempel URL foto.'
+            : (data.message || `Request failed with status ${response.status}`);
         throw new Error(errorMsg);
     }
     return data;
@@ -40,6 +42,17 @@ export const updateStoreSettings = async (settings) => {
         method: 'PUT',
         headers: getHeaders(),
         body: JSON.stringify(settings)
+    });
+    return handleResponse(res);
+};
+
+export const uploadStoreLogo = async (file) => {
+    const formData = new FormData();
+    formData.append('logo', file);
+    const res = await fetch(`${API_BASE}/store/logo`, {
+        method: 'POST',
+        headers: getHeaders(true),
+        body: formData
     });
     return handleResponse(res);
 };
@@ -123,6 +136,47 @@ export const deleteProduct = async (id) => {
     return handleResponse(res);
 };
 
+// Orders
+export const createOrder = async (order) => {
+    const res = await fetch(`${API_BASE}/orders`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(order)
+    });
+    return handleResponse(res);
+};
+
+export const fetchOrders = async () => {
+    const res = await fetch(`${API_BASE}/orders`, {
+        headers: getHeaders()
+    });
+    return handleResponse(res);
+};
+
+export const resetOrderStatuses = async () => {
+    const res = await fetch(`${API_BASE}/orders/reset-status`, {
+        method: 'PATCH',
+        headers: getHeaders()
+    });
+    return handleResponse(res);
+};
+
+export const deleteConfirmedOrder = async (id) => {
+    const res = await fetch(`${API_BASE}/orders/${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+        headers: getHeaders()
+    });
+    return handleResponse(res);
+};
+
+export const confirmOrder = async (id) => {
+    const res = await fetch(`${API_BASE}/orders/${encodeURIComponent(id)}/confirm`, {
+        method: 'PATCH',
+        headers: getHeaders()
+    });
+    return handleResponse(res);
+};
+
 // Auth
 export const loginAdmin = async (email, password) => {
     const res = await fetch(`${API_BASE}/auth/login`, {
@@ -136,6 +190,24 @@ export const loginAdmin = async (email, password) => {
 export const fetchAdminProfile = async () => {
     const res = await fetch(`${API_BASE}/auth/me`, {
         headers: getHeaders()
+    });
+    return handleResponse(res);
+};
+
+export const updateAdminProfile = async (profile) => {
+    const res = await fetch(`${API_BASE}/auth/me`, {
+        method: 'PUT',
+        headers: getHeaders(),
+        body: JSON.stringify(profile)
+    });
+    return handleResponse(res);
+};
+
+export const updateAdminPassword = async (passwords) => {
+    const res = await fetch(`${API_BASE}/auth/me/password`, {
+        method: 'PUT',
+        headers: getHeaders(),
+        body: JSON.stringify(passwords)
     });
     return handleResponse(res);
 };

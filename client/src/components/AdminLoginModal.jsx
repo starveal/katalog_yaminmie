@@ -5,8 +5,9 @@ import {
     Mail,
     AlertCircle,
     ArrowRight,
-    ShieldCheck,
-    KeyRound
+    KeyRound,
+    Eye,
+    EyeOff
 } from 'lucide-react';
 
 import { loginAdmin, setAuthToken } from '../services/api';
@@ -14,6 +15,7 @@ import { loginAdmin, setAuthToken } from '../services/api';
 export const AdminLoginModal = ({ isOpen, onClose, onSuccess }) => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [isPasswordVisible, setIsPasswordVisible] = useState(false);
     const [errorMsg, setErrorMsg] = useState('');
     const [isLoading, setIsLoading] = useState(false);
 
@@ -161,15 +163,26 @@ export const AdminLoginModal = ({ isOpen, onClose, onSuccess }) => {
                                 <span>Password</span>
                             </label>
 
-                            <input
-                                id="admin-password"
-                                type="password"
-                                className="form-input"
-                                placeholder="••••••••"
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                required
-                            />
+                            <div className="password-input-wrapper">
+                                <input
+                                    id="admin-password"
+                                    type={isPasswordVisible ? 'text' : 'password'}
+                                    className="form-input"
+                                    placeholder="••••••••"
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                    required
+                                />
+                                <button
+                                    type="button"
+                                    className="password-visibility-toggle"
+                                    onClick={() => setIsPasswordVisible((visible) => !visible)}
+                                    aria-label={isPasswordVisible ? 'Sembunyikan password' : 'Lihat password'}
+                                    aria-pressed={isPasswordVisible}
+                                >
+                                    {isPasswordVisible ? <EyeOff size={18} /> : <Eye size={18} />}
+                                </button>
+                            </div>
                         </div>
                     </div>
 
