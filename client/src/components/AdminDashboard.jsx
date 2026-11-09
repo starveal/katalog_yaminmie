@@ -50,7 +50,8 @@ import {
   addRecommendedProduct,
   removeRecommendedProduct,
   updateAdminProfile,
-  updateAdminPassword
+  updateAdminPassword,
+  getImageUrl
 } from '../services/api';
 
 export const AdminDashboard = ({
@@ -572,7 +573,7 @@ export const AdminDashboard = ({
         <div className="sidebar-brand">
           <div className="sidebar-brand-icon">
             <img
-              src={storeSettings?.logo || DefaultLogo}
+              src={getImageUrl(storeSettings?.logo) || DefaultLogo}
               alt={`Logo ${storeSettings?.storeName || 'KatalogWA'}`}
             />
           </div>
@@ -994,7 +995,7 @@ export const AdminDashboard = ({
                     const isRecommended = recommendedProductIds.includes(product.id);
                     return (
                     <article className="recommended-product-item" key={product.id}>
-                      <img src={product.image} alt={product.name} />
+                      <img src={getImageUrl(product.image)} alt={product.name} />
                       <div className="recommended-product-details">
                         <strong>{product.name}</strong>
                         <span>{product.categoryName} · {formatRupiah(product.price)}</span>
@@ -1093,7 +1094,7 @@ export const AdminDashboard = ({
                             {/* Image */}
                             <td style={{ width: '64px' }}>
                               <img
-                                src={prod.image}
+                                src={getImageUrl(prod.image)}
                                 alt={prod.name}
                                 className="table-product-thumb"
                                 onError={(e) => {
@@ -1416,7 +1417,7 @@ export const AdminDashboard = ({
                 <div className="store-logo-editor">
                   <div className="store-logo-preview">
                     <img
-                      src={logoPreview || storeSettings?.logo || DefaultLogo}
+                      src={logoPreview || getImageUrl(storeSettings?.logo) || DefaultLogo}
                       alt="Pratinjau logo katalog"
                     />
                   </div>
@@ -1468,7 +1469,7 @@ export const AdminDashboard = ({
                 <div className="store-logo-editor">
                   <div className="store-logo-preview">
                     <img
-                      src={homepageImagePreview || storeSettings?.homepageImage || DefaultLogo}
+                      src={homepageImagePreview || getImageUrl(storeSettings?.homepageImage) || DefaultLogo}
                       alt="Pratinjau gambar halaman beranda"
                     />
                   </div>

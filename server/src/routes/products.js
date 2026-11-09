@@ -1,21 +1,11 @@
 
 import express from 'express';
 import multer from 'multer';
-import path from 'path';
-import fs from 'fs';
-import { fileURLToPath } from 'url';
+import path from 'node:path';
 
 import { db } from '../db/db.js';
 import { authenticateToken } from '../db/middleware/auth.js';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-const uploadsDir = path.join(__dirname, '../../uploads');
-
-if (!fs.existsSync(uploadsDir)) {
-    fs.mkdirSync(uploadsDir, { recursive: true });
-}
+import { uploadsDir } from '../utils/uploads.js';
 
 // Multer configuration
 const storage = multer.diskStorage({

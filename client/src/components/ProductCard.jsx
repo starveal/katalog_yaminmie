@@ -1,5 +1,6 @@
 import React from 'react';
 import { MessageCircle, CheckCircle2, XCircle, ShoppingCart } from 'lucide-react';
+import { getImageUrl } from '../services/api';
 
 export const ProductCard = ({ product, onSelectProduct, onAddToCart }) => {
   const isAvailable = product.stockStatus === 'Tersedia';
@@ -18,7 +19,7 @@ export const ProductCard = ({ product, onSelectProduct, onAddToCart }) => {
       {/* Product Image Box */}
       <div className="product-image-box">
         <img
-          src={product.image}
+          src={getImageUrl(product.image)}
           alt={product.name}
           className="product-img"
           loading="lazy"

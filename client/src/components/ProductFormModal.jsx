@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, Upload, Image as ImageIcon, Save, AlertCircle } from 'lucide-react';
+import { getImageUrl } from '../services/api';
 
 const PRESET_FOOD_IMAGES = [
   { label: 'Nasi Goreng', url: 'https://images.unsplash.com/photo-1603133872878-684f208fb84b?auto=format&fit=crop&w=800&q=80' },
@@ -82,8 +83,8 @@ export const ProductFormModal = ({ isOpen, onClose, onSave, editingProduct, cate
       setPrice(editingProduct.price ? String(editingProduct.price) : '');
       setStockStatus(editingProduct.stockStatus || 'Tersedia');
       setDescription(editingProduct.description || '');
-      setImageUrl(editingProduct.image || '');
-      setPreviewSrc(editingProduct.image || '');
+      setImageUrl(getImageUrl(editingProduct.image));
+      setPreviewSrc(getImageUrl(editingProduct.image));
       setSelectedFile(null);
     } else {
       setName('');
@@ -182,7 +183,7 @@ export const ProductFormModal = ({ isOpen, onClose, onSave, editingProduct, cate
           price: Number(price),
           stockStatus,
           description: description.trim(),
-          imageUrl: previewSrc || imageUrl
+          imageUrl: getImageUrl(previewSrc || imageUrl)
         };
       }
 
@@ -229,7 +230,7 @@ export const ProductFormModal = ({ isOpen, onClose, onSave, editingProduct, cate
             <div className="product-form-media-section">
               <div className="media-preview-box">
                 {previewSrc ? (
-                  <img src={previewSrc} alt="Preview" className="media-preview-img" />
+                  <img src={getImageUrl(previewSrc)} alt="Preview" className="media-preview-img" />
                 ) : (
                   <div className="media-placeholder">
                     <ImageIcon size={32} />

@@ -1,6 +1,22 @@
 const API_BASE = '/api';
 const CUSTOMER_ORDER_IDS_KEY = 'katalogwa_customer_order_ids';
 
+export const getImageUrl = (imagePath) => {
+    if (typeof imagePath !== 'string' || !imagePath.trim()) return '';
+
+    const value = imagePath.trim();
+    try {
+        const url = new URL(value, 'http://localhost');
+        if (url.pathname === '/uploads' || url.pathname.startsWith('/uploads/')) {
+            return `${url.pathname}${url.search}${url.hash}`;
+        }
+    } catch {
+        return value;
+    }
+
+    return value;
+};
+
 export const getCustomerOrderIds = () => {
     try {
         const orderIds = JSON.parse(localStorage.getItem(CUSTOMER_ORDER_IDS_KEY) || '[]');

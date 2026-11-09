@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { X, MessageCircle, AlertCircle, Send, Trash2 } from 'lucide-react';
-import { createOrder } from '../services/api';
+import { createOrder, getImageUrl } from '../services/api';
 
 export const OrderModal = ({
   product,
@@ -140,7 +140,7 @@ export const OrderModal = ({
               <div className="cart-order-items">
                 {items.map((item) => (
                   <div className="order-product-summary" key={item.id}>
-                    <img src={item.image} alt={item.name} className="summary-img" />
+                    <img src={getImageUrl(item.image)} alt={item.name} className="summary-img" />
                     <div className="summary-details">
                       <span className="summary-category">{item.categoryName || 'Menu'}</span>
                       <h4 className="summary-name">{item.name}</h4>

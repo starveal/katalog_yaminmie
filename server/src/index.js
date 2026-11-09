@@ -1,20 +1,13 @@
 
 import express from 'express';
 import cors from 'cors';
-import path from 'path';
-import { fileURLToPath } from 'url';
-import dotenv from 'dotenv';
+import { uploadsDir } from './utils/uploads.js';
 
 import authRoutes from './routes/auth.js';
 import categoryRoutes from './routes/categories.js';
 import productRoutes from './routes/products.js';
 import storeRoutes from './routes/store.js';
 import orderRoutes from './routes/orders.js';
-
-dotenv.config();
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -30,8 +23,10 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Static uploaded files
-const uploadsPath = path.join(__dirname, '../uploads');
-app.use('/uploads', express.static(uploadsPath));
+app.use('/uploads', express.static(uploadsDir, {
+    index: false,
+    maxAge: '1d'
+}));
 
 // API Routes
 app.use('/api/auth', authRoutes);

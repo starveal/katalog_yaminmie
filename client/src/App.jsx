@@ -19,6 +19,7 @@ import { AdminLoginModal } from './components/AdminLoginModal';
 import { AdminDashboard } from './components/AdminDashboard';
 import { Sparkles, MessageCircle, MapPin, Phone, RefreshCw, ArrowUpRight, Utensils } from 'lucide-react';
 import DefaultLogo from './assets/Cinnamix Coffee and Cinnamon Logo.png';
+import { getImageUrl } from './services/api';
 
 const currentYear = new Date().getFullYear();
 
@@ -215,7 +216,7 @@ export function App() {
                 <div className="hero-visual">
                   <img
                     className="hero-image"
-                    src={storeSettings?.homepageImage || DefaultLogo}
+                    src={getImageUrl(storeSettings?.homepageImage) || DefaultLogo}
                     alt="Gambar halaman beranda"
                     onError={(event) => {
                       event.currentTarget.onerror = null;
@@ -351,7 +352,7 @@ export function App() {
           <footer className="site-footer">
             <div className="container footer-main">
               <div className="footer-brand">
-                <img src={storeSettings?.logo || DefaultLogo} alt="" />
+                <img src={getImageUrl(storeSettings?.logo) || DefaultLogo} alt="" />
                 <div>
                   <strong>{storeSettings?.storeName || 'Cinnamix Coffee & Resto'}</strong>
                   <p>{storeSettings?.tagline || 'Rasa lokal, dibuat sepenuh hati.'}</p>

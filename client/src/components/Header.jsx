@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { CircleHelp, MessageCircle, Lock, LogOut, LayoutDashboard, Store, ShoppingCart, X, ClipboardList, RefreshCw, Trash2 } from 'lucide-react';
 
 import DefaultLogo from '../assets/Cinnamix Coffee and Cinnamon Logo.png';
-import { fetchCustomerOrders } from '../services/api';
+import { fetchCustomerOrders, getImageUrl } from '../services/api';
 import { ConfirmModal } from './ConfirmModal';
 
 export const Header = ({
@@ -127,7 +127,7 @@ export const Header = ({
         >
           <div className="logo-brand">
             <img
-              src={storeSettings?.logo || DefaultLogo}
+              src={getImageUrl(storeSettings?.logo) || DefaultLogo}
               width={44}
               height={44}
               alt={`Logo ${storeSettings?.storeName || 'Cinnamix Coffee and Cinnamon'}`}

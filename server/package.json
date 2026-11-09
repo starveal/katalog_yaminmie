@@ -4,7 +4,8 @@
   "description": "",
   "main": "src/index.js",
   "scripts": {
-    "dev": "node --experimental-sqlite src/index.js"
+    "dev": "node --experimental-sqlite src/index.js",
+    "start": "node --experimental-sqlite src/index.js"
   },
   "keywords": [],
   "author": "",

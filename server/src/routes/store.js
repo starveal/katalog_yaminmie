@@ -1,20 +1,13 @@
 
 import express from 'express';
 import multer from 'multer';
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
 import { db } from '../db/db.js';
 import { authenticateToken } from '../db/middleware/auth.js';
+import fs from 'node:fs';
+import path from 'node:path';
+import { uploadsDir } from '../utils/uploads.js';
 
 const router = express.Router();
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const uploadsDir = path.join(__dirname, '../../uploads');
-
-if (!fs.existsSync(uploadsDir)) {
-    fs.mkdirSync(uploadsDir, { recursive: true });
-}
 
 const createImageUpload = (prefix, formatErrorMessage) => multer({
     storage: multer.diskStorage({
