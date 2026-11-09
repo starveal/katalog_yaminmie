@@ -74,7 +74,8 @@ class SqliteDatabase {
         total_price INTEGER NOT NULL,
         status TEXT NOT NULL DEFAULT 'Menunggu konfirmasi',
         created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        confirmed_at TEXT
+        confirmed_at TEXT,
+        admin_hidden INTEGER NOT NULL DEFAULT 0
       );
     `);
 
@@ -82,6 +83,14 @@ class SqliteDatabase {
     if (!orderColumns.some((column) => column.name === 'confirmed_at')) {
       this.db.exec('ALTER TABLE orders ADD COLUMN confirmed_at TEXT');
     }
+    if (!orderColumns.some((column) => column.name === 'admin_hidden')) {
+      this.db.exec('ALTER TABLE orders ADD COLUMN admin_hidden INTEGER NOT NULL DEFAULT 0');
+    }
+    this.db.prepare(`
+      UPDATE orders
+      SET status = 'Selesai'
+      WHERE status = 'Telah dikonfirmasi'
+    `).run();
 
     // Indexes
     this.db.exec(`
@@ -225,6 +234,12 @@ class SqliteDatabase {
     for (const row of rows) {
       settings[row.key] = row.value;
     }
+    settings.recommendedMenus = settings.recommendedMenus
+      ? JSON.parse(settings.recommendedMenus)
+      : [];
+    settings.recommendedProductIds = settings.recommendedProductIds
+      ? JSON.parse(settings.recommendedProductIds)
+      : [];
     return settings;
   }
 
@@ -440,8 +455,30 @@ class SqliteDatabase {
         created_at AS createdAt,
         confirmed_at AS confirmedAt
       FROM orders
+      WHERE admin_hidden = 0
       ORDER BY created_at DESC, rowid DESC
     `).all().map(({ itemsJson, ...order }) => ({
+      ...order,
+      items: JSON.parse(itemsJson)
+    }));
+  }
+
+  getOrdersByIds(ids) {
+    if (ids.length === 0) return [];
+    const placeholders = ids.map(() => '?').join(', ');
+    return this.db.prepare(`
+      SELECT
+        id,
+        customer_name AS customerName,
+        items_json AS itemsJson,
+        total_price AS totalPrice,
+        status,
+        created_at AS createdAt,
+        confirmed_at AS confirmedAt
+      FROM orders
+      WHERE id IN (${placeholders})
+      ORDER BY created_at DESC, rowid DESC
+    `).all(...ids).map(({ itemsJson, ...order }) => ({
       ...order,
       items: JSON.parse(itemsJson)
     }));
@@ -469,32 +506,32 @@ class SqliteDatabase {
   confirmOrder(id) {
     const result = this.db.prepare(`
       UPDATE orders
-      SET status = 'Telah dikonfirmasi',
+      SET status = 'Selesai',
           confirmed_at = CURRENT_TIMESTAMP
-      WHERE id = ? AND status != 'Telah dikonfirmasi'
+      WHERE id = ? AND status != 'Selesai'
     `).run(id);
 
     return result.changes > 0;
   }
 
-  resetOrderStatuses() {
+  hideCompletedOrderFromAdmin(id) {
     const result = this.db.prepare(`
       UPDATE orders
-      SET status = 'Menunggu konfirmasi',
-          confirmed_at = NULL
-      WHERE status != 'Menunggu konfirmasi' OR confirmed_at IS NOT NULL
+      SET admin_hidden = 1
+      WHERE id = ? AND status = 'Selesai' AND admin_hidden = 0
+    `).run(id);
+
+    return result.changes > 0;
+  }
+
+  hideAllCompletedOrdersFromAdmin() {
+    const result = this.db.prepare(`
+      UPDATE orders
+      SET admin_hidden = 1
+      WHERE status = 'Selesai' AND admin_hidden = 0
     `).run();
 
     return result.changes;
-  }
-
-  deleteConfirmedOrder(id) {
-    const result = this.db.prepare(`
-      DELETE FROM orders
-      WHERE id = ? AND status = 'Telah dikonfirmasi'
-    `).run(id);
-
-    return result.changes > 0;
   }
 }
 

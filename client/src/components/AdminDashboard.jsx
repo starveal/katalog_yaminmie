@@ -26,7 +26,8 @@ import {
   Eye,
   EyeOff,
   Image as ImageIcon,
-  Upload
+  Upload,
+  Star
 } from 'lucide-react';
 import { ProductFormModal } from './ProductFormModal';
 import { ConfirmModal } from './ConfirmModal';
@@ -40,11 +41,14 @@ import {
   updateCategory,
   deleteCategory,
   fetchOrders,
-  resetOrderStatuses,
   confirmOrder,
-  deleteConfirmedOrder,
+  hideCompletedOrderFromAdmin,
+  hideAllCompletedOrdersFromAdmin,
   updateStoreSettings,
   uploadStoreLogo,
+  uploadHomepageImage,
+  addRecommendedProduct,
+  removeRecommendedProduct,
   updateAdminProfile,
   updateAdminPassword
 } from '../services/api';
@@ -55,6 +59,7 @@ export const AdminDashboard = ({
   storeSettings,
   adminUser,
   onRefreshData,
+  onStoreSettingsUpdated,
   onBackToCatalog,
   onLogout,
   onProfileUpdated
@@ -62,18 +67,25 @@ export const AdminDashboard = ({
   const [activeTab, setActiveTab] = useState('products');
   const [isSidebarOpenMobile, setIsSidebarOpenMobile] = useState(false);
   const [orders, setOrders] = useState([]);
+  const [orderFilter, setOrderFilter] = useState('all');
   const [ordersError, setOrdersError] = useState('');
   const [isLoadingOrders, setIsLoadingOrders] = useState(true);
   const [confirmingOrderId, setConfirmingOrderId] = useState('');
   const [deletingOrder, setDeletingOrder] = useState(null);
   const [deletingOrderId, setDeletingOrderId] = useState('');
+  const [isDeleteAllOrdersOpen, setIsDeleteAllOrdersOpen] = useState(false);
+  const [isDeletingAllOrders, setIsDeletingAllOrders] = useState(false);
 
   // Product states
   const [productSearch, setProductSearch] = useState('');
   const [productCategoryFilter, setProductCategoryFilter] = useState('');
+  const [recommendedProductSearch, setRecommendedProductSearch] = useState('');
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
   const [deletingProduct, setDeletingProduct] = useState(null);
+  const [recommendedProductError, setRecommendedProductError] = useState('');
+  const [recommendedProductSuccess, setRecommendedProductSuccess] = useState('');
+  const [updatingRecommendedProductId, setUpdatingRecommendedProductId] = useState('');
 
   // Category states
   const [newCatName, setNewCatName] = useState('');
@@ -87,10 +99,14 @@ export const AdminDashboard = ({
   const currentSettingsForm = {
     storeName: settingsForm.storeName ?? storeSettings?.storeName ?? '',
     tagline: settingsForm.tagline ?? storeSettings?.tagline ?? '',
+    homepageDescription: settingsForm.homepageDescription ?? storeSettings?.homepageDescription ?? '',
     phone: settingsForm.phone ?? storeSettings?.phone ?? '',
     address: settingsForm.address ?? storeSettings?.address ?? ''
   };
   const [settingsSuccess, setSettingsSuccess] = useState(false);
+  const [homepageDescriptionError, setHomepageDescriptionError] = useState('');
+  const [homepageDescriptionSuccess, setHomepageDescriptionSuccess] = useState('');
+  const [isSavingHomepageDescription, setIsSavingHomepageDescription] = useState(false);
   const [profileForm, setProfileForm] = useState({
     name: adminUser?.name || '',
     email: adminUser?.email || '',
@@ -113,6 +129,12 @@ export const AdminDashboard = ({
   const [logoSuccess, setLogoSuccess] = useState('');
   const [isUploadingLogo, setIsUploadingLogo] = useState(false);
   const logoPreviewUrl = useRef(null);
+  const [homepageImageFile, setHomepageImageFile] = useState(null);
+  const [homepageImagePreview, setHomepageImagePreview] = useState('');
+  const [homepageImageError, setHomepageImageError] = useState('');
+  const [homepageImageSuccess, setHomepageImageSuccess] = useState('');
+  const [isUploadingHomepageImage, setIsUploadingHomepageImage] = useState(false);
+  const homepageImagePreviewUrl = useRef(null);
   const [visiblePasswords, setVisiblePasswords] = useState({
     profileCurrent: false,
     passwordCurrent: false,
@@ -126,6 +148,7 @@ export const AdminDashboard = ({
 
   useEffect(() => () => {
     if (logoPreviewUrl.current) URL.revokeObjectURL(logoPreviewUrl.current);
+    if (homepageImagePreviewUrl.current) URL.revokeObjectURL(homepageImagePreviewUrl.current);
   }, []);
 
   const handleConfirmOrder = async (orderId) => {
@@ -141,13 +164,13 @@ export const AdminDashboard = ({
     }
   };
 
-  const handleDeleteConfirmedOrder = async () => {
+  const handleDeleteCompletedOrder = async () => {
     if (!deletingOrder || deletingOrderId) return;
 
     setDeletingOrderId(deletingOrder.id);
     setOrdersError('');
     try {
-      await deleteConfirmedOrder(deletingOrder.id);
+      await hideCompletedOrderFromAdmin(deletingOrder.id);
       setDeletingOrder(null);
       await loadOrders();
     } catch (error) {
@@ -157,19 +180,33 @@ export const AdminDashboard = ({
     }
   };
 
-  const pendingOrderCount = orders.filter((order) => order.status !== 'Telah dikonfirmasi').length;
+  const handleDeleteAllCompletedOrders = async () => {
+    if (isDeletingAllOrders || completedOrderCount === 0) return;
+
+    setIsDeletingAllOrders(true);
+    setOrdersError('');
+    try {
+      await hideAllCompletedOrdersFromAdmin();
+      setIsDeleteAllOrdersOpen(false);
+      await loadOrders();
+    } catch (error) {
+      setOrdersError(error.message || 'Semua riwayat pesanan gagal dihapus.');
+    } finally {
+      setIsDeletingAllOrders(false);
+    }
+  };
+
+  const pendingOrderCount = orders.filter((order) => order.status !== 'Selesai').length;
+  const completedOrderCount = orders.length - pendingOrderCount;
+  const filteredOrders = orders.filter((order) => (
+    orderFilter === 'all' ||
+    (orderFilter === 'pending' && order.status !== 'Selesai') ||
+    (orderFilter === 'completed' && order.status === 'Selesai')
+  ));
 
   const handleRefreshOrders = async () => {
     setIsLoadingOrders(true);
-    setOrdersError('');
-    try {
-      await resetOrderStatuses();
-      await loadOrders();
-    } catch (error) {
-      setOrdersError(error.message || 'Status pesanan gagal direset.');
-    } finally {
-      setIsLoadingOrders(false);
-    }
+    await loadOrders();
   };
 
   const loadOrders = useCallback(async () => {
@@ -212,6 +249,14 @@ export const AdminDashboard = ({
   const totalCount = products.length;
   const availableCount = products.filter((p) => p.stockStatus === 'Tersedia').length;
   const outCount = totalCount - availableCount;
+  const recommendedProductIds = Array.isArray(storeSettings?.recommendedProductIds)
+    ? storeSettings.recommendedProductIds
+    : [];
+  const filteredRecommendedProducts = products.filter((product) => (
+    !recommendedProductSearch ||
+    product.name.toLowerCase().includes(recommendedProductSearch.toLowerCase()) ||
+    product.categoryName?.toLowerCase().includes(recommendedProductSearch.toLowerCase())
+  ));
 
   // --- Handlers: Product Management ---
   const handleOpenAddProduct = () => {
@@ -301,13 +346,61 @@ export const AdminDashboard = ({
   const handleSaveSettings = async (e) => {
     e.preventDefault();
     try {
-      await updateStoreSettings({ ...currentSettingsForm, ...settingsForm });
+      const response = await updateStoreSettings({ ...currentSettingsForm, ...settingsForm });
+      if (response?.data) onStoreSettingsUpdated(response.data);
       setSettingsForm({});
       setSettingsSuccess(true);
       await onRefreshData();
       setTimeout(() => setSettingsSuccess(false), 3000);
     } catch (err) {
       alert(`Gagal menyimpan pengaturan: ${err.message}`);
+    }
+  };
+
+  const handleSaveHomepageDescription = async () => {
+    setHomepageDescriptionError('');
+    setHomepageDescriptionSuccess('');
+    setIsSavingHomepageDescription(true);
+
+    try {
+      const response = await updateStoreSettings({
+        homepageDescription: currentSettingsForm.homepageDescription
+      });
+      if (!response?.data) {
+        throw new Error('Server tidak mengembalikan pengaturan yang telah disimpan.');
+      }
+
+      onStoreSettingsUpdated(response.data);
+      setSettingsForm((current) => {
+        const { homepageDescription: _savedDescription, ...remainingSettings } = current;
+        return remainingSettings;
+      });
+      setHomepageDescriptionSuccess('Deskripsi halaman beranda berhasil diperbarui.');
+    } catch (error) {
+      setHomepageDescriptionError(error.message || 'Gagal menyimpan deskripsi halaman beranda.');
+    } finally {
+      setIsSavingHomepageDescription(false);
+    }
+  };
+
+  const handleUploadHomepageImage = async () => {
+    if (!homepageImageFile) return;
+    setHomepageImageError('');
+    setHomepageImageSuccess('');
+    setIsUploadingHomepageImage(true);
+    try {
+      const response = await uploadHomepageImage(homepageImageFile);
+      if (response?.data) onStoreSettingsUpdated(response.data);
+      setHomepageImageFile(null);
+      setHomepageImagePreview('');
+      if (homepageImagePreviewUrl.current) URL.revokeObjectURL(homepageImagePreviewUrl.current);
+      homepageImagePreviewUrl.current = null;
+      await onRefreshData();
+      setHomepageImageSuccess(response.message || 'Gambar beranda berhasil diperbarui.');
+    } catch (err) {
+      setHomepageImageError(err.message || 'Gagal memperbarui gambar beranda.');
+    } finally {
+      setIsUploadingHomepageImage(false);
     }
   };
 
@@ -383,6 +476,56 @@ export const AdminDashboard = ({
       setLogoError(err.message || 'Gagal memperbarui logo katalog.');
     } finally {
       setIsUploadingLogo(false);
+    }
+  };
+
+  const handleHomepageImageFileChange = (e) => {
+    const file = e.target.files[0];
+    e.target.value = '';
+    setHomepageImageError('');
+    setHomepageImageSuccess('');
+    if (!file) return;
+
+    setHomepageImageFile(null);
+    setHomepageImagePreview('');
+    if (homepageImagePreviewUrl.current) URL.revokeObjectURL(homepageImagePreviewUrl.current);
+    homepageImagePreviewUrl.current = null;
+
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+    const allowedExtension = /\.(jpe?g|png|webp|gif)$/i.test(file.name);
+    if (!allowedTypes.includes(file.type) || !allowedExtension) {
+      setHomepageImageError('Format gambar beranda harus JPG, PNG, WEBP, atau GIF.');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setHomepageImageError('Ukuran gambar beranda maksimal 5 MB.');
+      return;
+    }
+
+    homepageImagePreviewUrl.current = URL.createObjectURL(file);
+    setHomepageImagePreview(homepageImagePreviewUrl.current);
+    setHomepageImageFile(file);
+  };
+
+  const handleToggleRecommendedProduct = async (product) => {
+    setRecommendedProductError('');
+    setRecommendedProductSuccess('');
+    setUpdatingRecommendedProductId(product.id);
+    try {
+      const isRecommended = recommendedProductIds.includes(product.id);
+      const response = isRecommended
+        ? await removeRecommendedProduct(product.id)
+        : await addRecommendedProduct(product.id);
+      if (!response?.data) {
+        throw new Error('Server tidak mengembalikan daftar produk rekomendasi yang telah diperbarui.');
+      }
+      onStoreSettingsUpdated(response.data);
+      setRecommendedProductSuccess(response.message || 'Rekomendasi produk berhasil diperbarui.');
+      await onRefreshData();
+    } catch (error) {
+      setRecommendedProductError(error.message || 'Gagal memperbarui rekomendasi produk.');
+    } finally {
+      setUpdatingRecommendedProductId('');
     }
   };
 
@@ -470,6 +613,19 @@ export const AdminDashboard = ({
           </button>
 
           <button
+            className={`sidebar-nav-item ${activeTab === 'recommended' ? 'active' : ''}`}
+            onClick={() => {
+              setActiveTab('recommended');
+              setIsSidebarOpenMobile(false);
+            }}
+            id="sidebar-link-recommended"
+          >
+            <Star size={18} />
+            <span className="nav-item-label">Rekomendasi Produk</span>
+            <span className="nav-badge-count">{recommendedProductIds.length}</span>
+          </button>
+
+          <button
             className={`sidebar-nav-item ${activeTab === 'categories' ? 'active' : ''}`}
             onClick={() => {
               setActiveTab('categories');
@@ -491,7 +647,7 @@ export const AdminDashboard = ({
             id="sidebar-link-orders"
           >
             <ShoppingBag size={18} />
-            <span className="nav-item-label">Pesanan Masuk</span>
+            <span className="nav-item-label">Pesanan & Riwayat</span>
             <span className="nav-badge-count" title={`${pendingOrderCount} pesanan belum dikonfirmasi`}>
               {pendingOrderCount}
             </span>
@@ -575,16 +731,18 @@ export const AdminDashboard = ({
             <div>
               <h2 className="viewport-title">
                 {activeTab === 'products' && 'Manajemen Produk Katalog'}
+                {activeTab === 'recommended' && 'Produk yang Disarankan'}
                 {activeTab === 'categories' && 'Manajemen Kategori'}
-                {activeTab === 'orders' && 'Informasi Pembelian'}
+                {activeTab === 'orders' && 'Pesanan & Riwayat'}
                 {activeTab === 'settings' && 'Pengaturan Toko & Nomor WhatsApp'}
                 {activeTab === 'profile' && 'Edit Profil Admin'}
               </h2>
               <span className="viewport-breadcrumb">
                 Admin Panel / {
                   activeTab === 'products' ? 'Produk'
+                    : activeTab === 'recommended' ? 'Produk Disarankan'
                     : activeTab === 'categories' ? 'Kategori'
-                      : activeTab === 'orders' ? 'Pesanan Masuk'
+                      : activeTab === 'orders' ? 'Pesanan & Riwayat'
                         : activeTab === 'settings' ? 'Pengaturan Toko'
                           : 'Profil Admin'
                 }
@@ -659,17 +817,46 @@ export const AdminDashboard = ({
             <div className="admin-tab-content animate-fade-in">
               <div className="table-controls-bar">
                 <p className="box-subtitle" style={{ margin: 0 }}>
-                  Tombol Perbarui Pesanan mengembalikan status seluruh pesanan ke Menunggu konfirmasi. Data pesanan dan catatan pelanggan tetap tersimpan.
+                  Pesanan yang dikonfirmasi admin berstatus Selesai dan tersimpan sebagai riwayat.
                 </p>
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  onClick={handleRefreshOrders}
-                  disabled={isLoadingOrders}
-                >
-                  <RefreshCw size={16} />
-                  <span>{isLoadingOrders ? 'Memuat...' : 'Perbarui Pesanan'}</span>
-                </button>
+                <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                  <button
+                    type="button"
+                    className="btn btn-danger-soft"
+                    onClick={() => setIsDeleteAllOrdersOpen(true)}
+                    disabled={completedOrderCount === 0 || isDeletingAllOrders}
+                  >
+                    <Trash2 size={16} />
+                    <span>Hapus Semua dari Riwayat Admin</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={handleRefreshOrders}
+                    disabled={isLoadingOrders}
+                  >
+                    <RefreshCw size={16} />
+                    <span>{isLoadingOrders ? 'Memuat...' : 'Perbarui Pesanan'}</span>
+                  </button>
+                </div>
+              </div>
+
+              <div className="order-history-filters" role="group" aria-label="Filter pesanan">
+                {[
+                  { id: 'all', label: `Semua (${orders.length})` },
+                  { id: 'pending', label: `Menunggu (${pendingOrderCount})` },
+                  { id: 'completed', label: `Riwayat Selesai (${completedOrderCount})` }
+                ].map((filter) => (
+                  <button
+                    type="button"
+                    key={filter.id}
+                    className={`btn btn-sm ${orderFilter === filter.id ? 'btn-primary' : 'btn-secondary'}`}
+                    onClick={() => setOrderFilter(filter.id)}
+                    aria-pressed={orderFilter === filter.id}
+                  >
+                    {filter.label}
+                  </button>
+                ))}
               </div>
 
               {ordersError && (
@@ -695,13 +882,17 @@ export const AdminDashboard = ({
                   <tbody>
                     {isLoadingOrders && orders.length === 0 ? (
                       <tr><td colSpan="7" className="table-empty-cell">Memuat daftar pesanan...</td></tr>
-                    ) : orders.length === 0 ? (
+                    ) : filteredOrders.length === 0 ? (
                       <tr>
                         <td colSpan="7" className="table-empty-cell">
-                          Belum ada pesanan masuk. Pesanan pelanggan akan tampil di sini setelah dikirim.
+                          {orderFilter === 'completed'
+                            ? 'Belum ada pesanan yang selesai.'
+                            : orderFilter === 'pending'
+                              ? 'Tidak ada pesanan yang menunggu konfirmasi.'
+                              : 'Belum ada pesanan masuk. Pesanan pelanggan akan tampil di sini setelah dikirim.'}
                         </td>
                       </tr>
-                    ) : orders.map((order) => (
+                    ) : filteredOrders.map((order) => (
                       <tr key={order.id}>
                         <td>
                           <strong>{new Date(`${order.createdAt.replace(' ', 'T')}Z`).toLocaleString('id-ID')}</strong>
@@ -720,7 +911,7 @@ export const AdminDashboard = ({
                         <td>{order.specialNotes || '—'}</td>
                         <td><strong className="table-product-price">{formatRupiah(order.totalPrice)}</strong></td>
                         <td>
-                          <span className={`order-status-badge ${order.status === 'Telah dikonfirmasi' ? 'confirmed' : ''}`}>
+                          <span className={`order-status-badge ${order.status === 'Selesai' ? 'confirmed' : ''}`}>
                             {order.status}
                           </span>
                           {order.confirmedAt && (
@@ -728,7 +919,7 @@ export const AdminDashboard = ({
                               {new Date(`${order.confirmedAt.replace(' ', 'T')}Z`).toLocaleString('id-ID')}
                             </small>
                           )}
-                          {order.status !== 'Telah dikonfirmasi' && (
+                          {order.status !== 'Selesai' && (
                             <button
                               type="button"
                               className="btn btn-primary btn-sm order-confirm-btn"
@@ -736,10 +927,10 @@ export const AdminDashboard = ({
                               disabled={confirmingOrderId === order.id}
                             >
                               <CheckCircle size={15} />
-                              <span>{confirmingOrderId === order.id ? 'Menyimpan...' : 'Tandai telah dikonfirmasi'}</span>
+                              <span>{confirmingOrderId === order.id ? 'Menyimpan...' : 'Konfirmasi & Selesaikan'}</span>
                             </button>
                           )}
-                          {order.status === 'Telah dikonfirmasi' && (
+                          {order.status === 'Selesai' && (
                             <button
                               type="button"
                               className="btn btn-danger btn-sm order-confirm-btn"
@@ -747,7 +938,7 @@ export const AdminDashboard = ({
                               disabled={deletingOrderId === order.id}
                             >
                               <Trash2 size={15} />
-                              <span>Hapus Pesanan</span>
+                              <span>Hapus dari Riwayat Admin</span>
                             </button>
                           )}
                         </td>
@@ -755,6 +946,79 @@ export const AdminDashboard = ({
                     ))}
                   </tbody>
                 </table>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'recommended' && (
+            <div className="admin-tab-content animate-fade-in">
+              <div className="card-box recommended-product-picker">
+                <h3 className="box-title">Pilih dari Manajemen Produk</h3>
+                <p className="box-subtitle">
+                  Produk yang dipilih akan ditampilkan di bagian menu yang disarankan pada katalog pelanggan.
+                </p>
+                {recommendedProductError && (
+                  <div className="form-alert-error animate-fade-in">
+                    <AlertCircle size={18} />
+                    <span>{recommendedProductError}</span>
+                  </div>
+                )}
+                {recommendedProductSuccess && (
+                  <div className="form-alert-success animate-fade-in">
+                    <Check size={18} />
+                    <span>{recommendedProductSuccess}</span>
+                  </div>
+                )}
+
+                <div className="table-controls-bar">
+                  <div className="search-input-wrapper" style={{ width: 'min(100%, 360px)' }}>
+                    <Search size={16} className="search-icon" />
+                    <input
+                      type="text"
+                      className="search-input"
+                      placeholder="Cari produk atau kategori..."
+                      value={recommendedProductSearch}
+                      onChange={(event) => setRecommendedProductSearch(event.target.value)}
+                    />
+                  </div>
+                  <span>{recommendedProductIds.length} produk ditampilkan sebagai rekomendasi</span>
+                </div>
+              </div>
+
+              <div className="recommended-product-list">
+                <h3 className="box-title">Daftar Produk</h3>
+                {filteredRecommendedProducts.length === 0 ? (
+                  <p className="recommended-menu-admin-empty">Tidak ada produk yang cocok dengan pencarian.</p>
+                ) : (
+                  filteredRecommendedProducts.map((product) => {
+                    const isRecommended = recommendedProductIds.includes(product.id);
+                    return (
+                    <article className="recommended-product-item" key={product.id}>
+                      <img src={product.image} alt={product.name} />
+                      <div className="recommended-product-details">
+                        <strong>{product.name}</strong>
+                        <span>{product.categoryName} · {formatRupiah(product.price)}</span>
+                      </div>
+                      <button
+                        type="button"
+                        className={`btn ${isRecommended ? 'btn-danger-soft' : 'btn-secondary'}`}
+                        onClick={() => handleToggleRecommendedProduct(product)}
+                        disabled={!!updatingRecommendedProductId}
+                        aria-label={`${isRecommended ? 'Hapus' : 'Tampilkan'} ${product.name} ${isRecommended ? 'dari' : 'di'} menu yang disarankan`}
+                      >
+                        {updatingRecommendedProductId === product.id
+                          ? <RefreshCw size={16} className="animate-spin" />
+                          : <Star size={16} />}
+                        <span>
+                          {updatingRecommendedProductId === product.id
+                            ? 'Menyimpan...'
+                            : isRecommended ? 'Hapus Rekomendasi' : 'Sarankan Produk'}
+                        </span>
+                      </button>
+                    </article>
+                    );
+                  })
+                )}
               </div>
             </div>
           )}
@@ -1055,6 +1319,47 @@ export const AdminDashboard = ({
                   </div>
 
                   <div className="form-group">
+                    <label className="form-label" htmlFor="admin-homepage-description">Deskripsi halaman beranda</label>
+                    <textarea
+                      id="admin-homepage-description"
+                      rows="3"
+                      className="form-textarea"
+                      value={currentSettingsForm.homepageDescription}
+                      onChange={(e) => {
+                        setSettingsForm((current) => ({ ...current, homepageDescription: e.target.value }));
+                        setHomepageDescriptionError('');
+                        setHomepageDescriptionSuccess('');
+                      }}
+                      maxLength={500}
+                    />
+                    <small style={{ color: 'var(--slate-500)', marginTop: '0.2rem' }}>
+                      Deskripsi ini ditampilkan pada bagian utama halaman beranda. Maksimal 500 karakter.
+                    </small>
+                    {homepageDescriptionError && (
+                      <div className="form-alert-error animate-fade-in" style={{ marginTop: '0.5rem' }}>
+                        <AlertCircle size={18} />
+                        <span>{homepageDescriptionError}</span>
+                      </div>
+                    )}
+                    {homepageDescriptionSuccess && (
+                      <div className="form-alert-success animate-fade-in" style={{ marginTop: '0.5rem' }}>
+                        <Check size={18} />
+                        <span>{homepageDescriptionSuccess}</span>
+                      </div>
+                    )}
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      style={{ marginTop: '0.5rem' }}
+                      onClick={handleSaveHomepageDescription}
+                      disabled={isSavingHomepageDescription}
+                    >
+                      <Save size={16} />
+                      <span>{isSavingHomepageDescription ? 'Menyimpan...' : 'Simpan Deskripsi Beranda'}</span>
+                    </button>
+                  </div>
+
+                  <div className="form-group">
                     <label className="form-label">
                       <PhoneCall size={15} />
                       <span>Nomor WhatsApp Tujuan (Gunakan kode negara, cth: 6281234567890)</span>
@@ -1136,6 +1441,58 @@ export const AdminDashboard = ({
                     >
                       <Upload size={16} />
                       <span>{isUploadingLogo ? 'Mengunggah...' : 'Simpan Logo'}</span>
+                    </button>
+                  </div>
+                </div>
+
+                <hr style={{ margin: '1.75rem 0', border: 0, borderTop: '1px solid var(--slate-200)' }} />
+
+                <h3 className="box-title">Gambar Halaman Beranda</h3>
+                <p className="box-subtitle">
+                  Ganti gambar utama yang tampil di beranda. Nama/judul gambar diatur melalui Pengaturan Toko. Format JPG, PNG, WEBP, atau GIF, maksimal 5 MB.
+                </p>
+
+                {homepageImageError && (
+                  <div className="form-alert-error animate-fade-in" style={{ marginBottom: '1rem' }}>
+                    <AlertCircle size={18} />
+                    <span>{homepageImageError}</span>
+                  </div>
+                )}
+                {homepageImageSuccess && (
+                  <div className="form-alert-success animate-fade-in" style={{ marginBottom: '1rem' }}>
+                    <Check size={18} />
+                    <span>{homepageImageSuccess}</span>
+                  </div>
+                )}
+
+                <div className="store-logo-editor">
+                  <div className="store-logo-preview">
+                    <img
+                      src={homepageImagePreview || storeSettings?.homepageImage || DefaultLogo}
+                      alt="Pratinjau gambar halaman beranda"
+                    />
+                  </div>
+                  <div className="store-logo-controls">
+                    <label className="form-label" htmlFor="admin-homepage-image">
+                      <ImageIcon size={15} />
+                      <span>Pilih gambar beranda</span>
+                    </label>
+                    <input
+                      id="admin-homepage-image"
+                      type="file"
+                      className="form-input"
+                      accept=".jpg,.jpeg,.png,.webp,.gif,image/jpeg,image/png,image/webp,image/gif"
+                      onChange={handleHomepageImageFileChange}
+                    />
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      style={{ marginTop: '0.5rem' }}
+                      onClick={handleUploadHomepageImage}
+                      disabled={!homepageImageFile || isUploadingHomepageImage}
+                    >
+                      <Upload size={16} />
+                      <span>{isUploadingHomepageImage ? 'Mengunggah...' : 'Simpan Gambar Beranda'}</span>
                     </button>
                   </div>
                 </div>
@@ -1383,12 +1740,21 @@ export const AdminDashboard = ({
 
       <ConfirmModal
         isOpen={!!deletingOrder}
-        title="Hapus Pesanan Ini?"
-        message={`Apakah Anda yakin ingin menghapus pesanan dari "${deletingOrder?.customerName}"? Tindakan ini tidak dapat dibatalkan.`}
-        onConfirm={handleDeleteConfirmedOrder}
+        title="Hapus dari Riwayat Admin?"
+        message={`Pesanan dari "${deletingOrder?.customerName}" akan disembunyikan hanya dari dashboard admin. Riwayat pelanggan tetap tersedia.`}
+        onConfirm={handleDeleteCompletedOrder}
         onCancel={() => setDeletingOrder(null)}
-        confirmText={deletingOrderId ? 'Menghapus...' : 'Hapus Pesanan'}
+        confirmText={deletingOrderId ? 'Memperbarui...' : 'Hapus dari Riwayat Admin'}
         isProcessing={!!deletingOrderId}
+      />
+      <ConfirmModal
+        isOpen={isDeleteAllOrdersOpen}
+        title="Hapus Semua dari Riwayat Admin?"
+        message={`Semua ${completedOrderCount} pesanan selesai akan disembunyikan hanya dari dashboard admin. Riwayat pelanggan dan pesanan yang masih menunggu tetap tersimpan.`}
+        onConfirm={handleDeleteAllCompletedOrders}
+        onCancel={() => setIsDeleteAllOrdersOpen(false)}
+        confirmText={isDeletingAllOrders ? 'Menghapus...' : 'Hapus Semua'}
+        isProcessing={isDeletingAllOrders}
       />
     </div>
   );

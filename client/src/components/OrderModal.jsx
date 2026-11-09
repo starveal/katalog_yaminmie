@@ -96,7 +96,7 @@ export const OrderModal = ({
       const waUrl = `https://wa.me/${storePhone}?text=${encodeURIComponent(generateMessage(order))}`;
       whatsappWindow.opener = null;
       whatsappWindow.location.href = waUrl;
-      onOrderComplete?.();
+      onOrderComplete?.(order);
       onClose();
     } catch (error) {
       whatsappWindow.close();

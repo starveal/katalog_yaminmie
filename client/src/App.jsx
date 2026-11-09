@@ -5,7 +5,9 @@ import {
   fetchStoreSettings,
   fetchAdminProfile,
   clearAuthToken,
-  getAuthToken
+  getAuthToken,
+  getCustomerOrderIds,
+  saveCustomerOrderIds
 } from './services/api';
 
 import { Header } from './components/Header';
@@ -29,6 +31,8 @@ export function App() {
   const [selectedProductForOrder, setSelectedProductForOrder] = useState(null);
   const [cartItems, setCartItems] = useState([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [customerOrderIds, setCustomerOrderIds] = useState(getCustomerOrderIds);
+  const [orderHistoryWarning, setOrderHistoryWarning] = useState('');
 
   // Admin authentication & views
   const [isAdminLoginOpen, setIsAdminLoginOpen] = useState(false);
@@ -95,6 +99,34 @@ export function App() {
   };
 
   const cartItemCount = cartItems.reduce((total, item) => total + item.quantity, 0);
+  const recommendedProductIds = Array.isArray(storeSettings?.recommendedProductIds)
+    ? storeSettings.recommendedProductIds
+    : [];
+  const recommendedMenus = products.filter((product) => recommendedProductIds.includes(product.id));
+
+  const handleOrderComplete = (order) => {
+    const nextOrderIds = [...new Set([...customerOrderIds, order.id])].slice(-100);
+    setCustomerOrderIds(nextOrderIds);
+    try {
+      saveCustomerOrderIds(nextOrderIds);
+      setOrderHistoryWarning('');
+    } catch {
+      setOrderHistoryWarning('Riwayat pesanan ini hanya tersedia selama halaman tetap terbuka karena penyimpanan browser tidak dapat diakses.');
+    }
+    if (isCartOpen) setCartItems([]);
+  };
+
+  const handleCustomerOrderDeleted = (orderIds) => {
+    const deletedOrderIds = new Set(Array.isArray(orderIds) ? orderIds : [orderIds]);
+    const nextOrderIds = customerOrderIds.filter((id) => !deletedOrderIds.has(id));
+    setCustomerOrderIds(nextOrderIds);
+    try {
+      saveCustomerOrderIds(nextOrderIds);
+      setOrderHistoryWarning('');
+    } catch {
+      setOrderHistoryWarning('Pesanan telah dihapus dari server, tetapi daftar riwayat lokal gagal diperbarui.');
+    }
+  };
 
   // Filter products for Customer Catalog View
   const filteredProducts = products.filter((p) => {
@@ -110,7 +142,6 @@ export function App() {
     return matchesCat && matchesSearch;
   });
 
-  const heroProduct = products.find((product) => product.stockStatus === 'Tersedia') || products[0];
   const storePhone = (storeSettings?.phone || '6281234567890').replace(/[^0-9]/g, '');
   const whatsappUrl = `https://wa.me/${storePhone}?text=${encodeURIComponent(
     `Halo ${storeSettings?.storeName || 'Cinnamix Coffee & Resto'}, saya ingin bertanya tentang menu hari ini.`
@@ -128,6 +159,7 @@ export function App() {
           adminUser={adminUser}
           onProfileUpdated={setAdminUser}
           onRefreshData={loadData}
+          onStoreSettingsUpdated={setStoreSettings}
           onBackToCatalog={() => setIsAdminView(false)}
           onLogout={handleLogout}
         />
@@ -144,6 +176,9 @@ export function App() {
             onOpenCart={() => setIsCartOpen(true)}
             onOpenLogin={() => setIsAdminLoginOpen(true)}
             onLogout={handleLogout}
+            orderIds={customerOrderIds}
+            orderHistoryWarning={orderHistoryWarning}
+            onOrderDeleted={handleCustomerOrderDeleted}
           />
 
           <main className="customer-catalog-view animate-fade-in">
@@ -161,12 +196,12 @@ export function App() {
                   </h1>
 
                   <p className="hero-desc">
-                    {storeSettings?.tagline || 'Temukan racikan kopi dan hidangan rumahan yang selalu dibuat segar untuk menemani harimu.'}
+                    {storeSettings?.homepageDescription ?? 'Temukan racikan kopi dan hidangan rumahan yang selalu dibuat segar untuk menemani harimu.'}
                   </p>
                   <div className="hero-actions">
-                    <a className="btn btn-primary" href="#menu">
+                    <a className="btn btn-primary" href={recommendedMenus.length > 0 ? '#menu-disarankan' : '#menu'}>
                       <Utensils size={17} />
-                      <span>Lihat Menu</span>
+                      <span>Menu yang Disarankan</span>
                     </a>
                     <a className="btn btn-hero-outline" href={whatsappUrl} target="_blank" rel="noreferrer">
                       <MessageCircle size={17} />
@@ -180,19 +215,47 @@ export function App() {
                 <div className="hero-visual">
                   <img
                     className="hero-image"
-                    src={heroProduct?.image || DefaultLogo}
-                    alt={heroProduct?.name || 'Kopi dan hidangan Cinnamix'}
+                    src={storeSettings?.homepageImage || DefaultLogo}
+                    alt="Gambar halaman beranda"
+                    onError={(event) => {
+                      event.currentTarget.onerror = null;
+                      event.currentTarget.src = DefaultLogo;
+                    }}
                   />
                   <div className="hero-image-caption">
                     <span className="hero-caption-mark"><Sparkles size={15} /></span>
                     <span>
-                      <strong>{heroProduct?.name || storeSettings?.storeName || 'Cinnamix Coffee & Resto'}</strong>
-                      <small>Favorit untuk menemani harimu</small>
+                      <strong>Favorit pilihan</strong>
                     </span>
                   </div>
                 </div>
               </div>
             </section>
+
+            {recommendedMenus.length > 0 && (
+              <section className="recommended-menus-section" id="menu-disarankan">
+                <div className="container">
+                  <div className="recommended-menus-heading">
+                    <div>
+                      <span className="section-eyebrow">PILIHAN FAVORIT</span>
+                      <h2>Menu yang Disarankan</h2>
+                      <p>Menu pilihan yang wajib kamu coba.</p>
+                    </div>
+                    <a className="recommended-menus-all-link" href="#menu">Lihat semua menu</a>
+                  </div>
+                  <div className="recommended-menus-grid">
+                    {recommendedMenus.map((product) => (
+                      <ProductCard
+                        key={product.id}
+                        product={product}
+                        onSelectProduct={setSelectedProductForOrder}
+                        onAddToCart={handleAddToCart}
+                      />
+                    ))}
+                  </div>
+                </div>
+              </section>
+            )}
 
             <section className="container catalog-content" id="menu">
               <div className="catalog-intro">
@@ -275,9 +338,7 @@ export function App() {
               product={selectedProductForOrder}
               cartItems={isCartOpen ? cartItems : undefined}
               onCartItemsChange={setCartItems}
-              onOrderComplete={() => {
-                if (isCartOpen) setCartItems([]);
-              }}
+              onOrderComplete={handleOrderComplete}
               storeSettings={storeSettings}
               onClose={() => {
                 setSelectedProductForOrder(null);

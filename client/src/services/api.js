@@ -1,4 +1,23 @@
 const API_BASE = '/api';
+const CUSTOMER_ORDER_IDS_KEY = 'katalogwa_customer_order_ids';
+
+export const getCustomerOrderIds = () => {
+    try {
+        const orderIds = JSON.parse(localStorage.getItem(CUSTOMER_ORDER_IDS_KEY) || '[]');
+        return Array.isArray(orderIds)
+            ? [...new Set(orderIds.filter((id) => (
+                typeof id === 'string' &&
+                /^order-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)
+            )))].slice(-100)
+            : [];
+    } catch {
+        return [];
+    }
+};
+
+export const saveCustomerOrderIds = (orderIds) => {
+    localStorage.setItem(CUSTOMER_ORDER_IDS_KEY, JSON.stringify(orderIds.slice(-100)));
+};
 
 // Token Management
 export const getAuthToken = () => localStorage.getItem('katalogwa_token');
@@ -53,6 +72,33 @@ export const uploadStoreLogo = async (file) => {
         method: 'POST',
         headers: getHeaders(true),
         body: formData
+    });
+    return handleResponse(res);
+};
+
+export const uploadHomepageImage = async (file) => {
+    const formData = new FormData();
+    formData.append('image', file);
+    const res = await fetch(`${API_BASE}/store/homepage-image`, {
+        method: 'POST',
+        headers: getHeaders(true),
+        body: formData
+    });
+    return handleResponse(res);
+};
+
+export const addRecommendedProduct = async (id) => {
+    const res = await fetch(`${API_BASE}/store/recommended-products/${encodeURIComponent(id)}`, {
+        method: 'POST',
+        headers: getHeaders()
+    });
+    return handleResponse(res);
+};
+
+export const removeRecommendedProduct = async (id) => {
+    const res = await fetch(`${API_BASE}/store/recommended-products/${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+        headers: getHeaders()
     });
     return handleResponse(res);
 };
@@ -153,16 +199,23 @@ export const fetchOrders = async () => {
     return handleResponse(res);
 };
 
-export const resetOrderStatuses = async () => {
-    const res = await fetch(`${API_BASE}/orders/reset-status`, {
-        method: 'PATCH',
+export const fetchCustomerOrders = async (orderIds) => {
+    if (orderIds.length === 0) return { success: true, count: 0, data: [] };
+    const params = new URLSearchParams({ ids: orderIds.join(',') });
+    const res = await fetch(`${API_BASE}/orders/history?${params.toString()}`);
+    return handleResponse(res);
+};
+
+export const hideCompletedOrderFromAdmin = async (id) => {
+    const res = await fetch(`${API_BASE}/orders/${encodeURIComponent(id)}`, {
+        method: 'DELETE',
         headers: getHeaders()
     });
     return handleResponse(res);
 };
 
-export const deleteConfirmedOrder = async (id) => {
-    const res = await fetch(`${API_BASE}/orders/${encodeURIComponent(id)}`, {
+export const hideAllCompletedOrdersFromAdmin = async () => {
+    const res = await fetch(`${API_BASE}/orders/completed`, {
         method: 'DELETE',
         headers: getHeaders()
     });

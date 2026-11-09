@@ -120,25 +120,60 @@ router.get('/', authenticateToken, (req, res) => {
     }
 });
 
-router.patch('/reset-status', authenticateToken, (req, res) => {
+router.get('/history', (req, res) => {
     try {
-        const updatedCount = db.resetOrderStatuses();
+        const rawIds = req.query.ids || '';
+        if (typeof rawIds !== 'string') {
+            return res.status(400).json({
+                success: false,
+                message: 'Daftar ID pesanan tidak valid.'
+            });
+        }
+
+        const ids = [...new Set(rawIds.split(',').filter(Boolean))];
+        if (
+            ids.length > 100 ||
+            ids.some((id) => !/^order-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id))
+        ) {
+            return res.status(400).json({
+                success: false,
+                message: 'Daftar ID pesanan tidak valid.'
+            });
+        }
+
+        const orders = db.getOrdersByIds(ids);
         res.json({
             success: true,
-            message: 'Status seluruh pesanan telah direset.',
-            updatedCount,
-            data: db.getOrders()
+            count: orders.length,
+            data: orders
         });
     } catch (error) {
-        console.error('Gagal mereset status pesanan:', error);
+        console.error('Gagal mengambil riwayat pesanan pelanggan:', error);
         res.status(500).json({
             success: false,
-            message: 'Status pesanan gagal direset.'
+            message: 'Riwayat pesanan gagal dimuat.'
         });
     }
 });
 
-router.delete('/:id', authenticateToken, (req, res) => {
+router.delete('/completed', authenticateToken, (req, res) => {
+    try {
+        const hiddenCount = db.hideAllCompletedOrdersFromAdmin();
+        return res.json({
+            success: true,
+            message: 'Semua pesanan selesai disembunyikan dari riwayat admin.',
+            hiddenCount
+        });
+    } catch (error) {
+        console.error('Gagal menghapus semua pesanan selesai:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Semua riwayat pesanan gagal dihapus.'
+        });
+    }
+});
+
+const hideCompletedOrderFromAdmin = (req, res) => {
     try {
         const order = db.getOrders().find((item) => item.id === req.params.id);
         if (!order) {
@@ -148,32 +183,34 @@ router.delete('/:id', authenticateToken, (req, res) => {
             });
         }
 
-        if (order.status !== 'Telah dikonfirmasi') {
+        if (order.status !== 'Selesai') {
             return res.status(409).json({
                 success: false,
-                message: 'Hanya pesanan yang telah dikonfirmasi yang dapat dihapus.'
+                message: 'Hanya pesanan yang telah selesai yang dapat dihapus.'
             });
         }
 
-        if (!db.deleteConfirmedOrder(req.params.id)) {
+        if (!db.hideCompletedOrderFromAdmin(req.params.id)) {
             return res.status(409).json({
                 success: false,
-                message: 'Pesanan tidak dapat dihapus karena statusnya telah berubah.'
+                message: 'Pesanan tidak dapat disembunyikan karena statusnya telah berubah.'
             });
         }
 
-        res.json({
+        return res.json({
             success: true,
-            message: 'Pesanan berhasil dihapus.'
+            message: 'Pesanan disembunyikan dari riwayat admin. Riwayat pelanggan tetap tersedia.'
         });
     } catch (error) {
-        console.error('Gagal menghapus pesanan:', error);
-        res.status(500).json({
+        console.error('Gagal menyembunyikan pesanan dari riwayat admin:', error);
+        return res.status(500).json({
             success: false,
-            message: 'Pesanan gagal dihapus.'
+            message: 'Pesanan gagal disembunyikan dari riwayat admin.'
         });
     }
-});
+};
+
+router.delete('/:id', authenticateToken, hideCompletedOrderFromAdmin);
 
 router.patch('/:id/confirm', authenticateToken, (req, res) => {
     try {
@@ -185,7 +222,7 @@ router.patch('/:id/confirm', authenticateToken, (req, res) => {
             });
         }
 
-        if (order.status === 'Telah dikonfirmasi') {
+        if (order.status === 'Selesai') {
             return res.json({
                 success: true,
                 message: 'Pesanan sudah dikonfirmasi sebelumnya.',

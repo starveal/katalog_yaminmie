@@ -5,7 +5,6 @@ import {
     Mail,
     AlertCircle,
     ArrowRight,
-    KeyRound,
     Eye,
     EyeOff
 } from 'lucide-react';
@@ -20,13 +19,6 @@ export const AdminLoginModal = ({ isOpen, onClose, onSuccess }) => {
     const [isLoading, setIsLoading] = useState(false);
 
     if (!isOpen) return null;
-
-    // Auto-fill demo credentials for immediate evaluator convenience
-    const handleFillDemo = () => {
-        setEmail('admin@katalogwa.com');
-        setPassword('admin123');
-        setErrorMsg('');
-    };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -99,27 +91,6 @@ export const AdminLoginModal = ({ isOpen, onClose, onSuccess }) => {
                 {/* Form Body */}
                 <form onSubmit={handleSubmit}>
                     <div className="modal-body">
-
-                        {/* Quick Demo Credential Helper Pill */}
-                        <div className="demo-credentials-box">
-                            <div className="demo-creds-info">
-                                <KeyRound size={16} className="text-emerald" />
-                                <span>
-                                    Akun Demo: <strong>admin@katalogwa.com</strong>
-                                    {' / '}
-                                    <strong>admin123</strong>
-                                </span>
-                            </div>
-
-                            <button
-                                type="button"
-                                className="btn btn-secondary btn-xs demo-fill-btn"
-                                onClick={handleFillDemo}
-                            >
-                                Isi Otomatis
-                            </button>
-                        </div>
-
                         {/* Error Alert Box (Decision: Is NO) */}
                         {errorMsg && (
                             <div
